@@ -1,7 +1,7 @@
 #Cindy Xiong (cindyxio)
 #CMU 15-112 Term Project (Fantasy Monopoly against AI)
 
-from cmu_112_graphics import *
+from cmu_112_graphics_cindyxiotp import *
 import tkinter as tk
 
 class Property(object):
@@ -39,6 +39,7 @@ def appStarted(app):
     app.margin = 20
     app.cellHeight = (app.height-2*app.margin)/6
     app.cellWidth = app.cellHeight*2/3
+    app.text = int(app.height//60)
     app.player = {'Money': 1500, 'Properties': None}
     app.AI = {'Money': 1500, 'Properties': None}
     app.fernalia = Property('Fernalia Court', 150, 17, '+100*(self.level+1)', 
@@ -74,6 +75,9 @@ def keyPressed(app, event):
 def mousePressed(app, event):
     pass
 
+def timerStarted(app, event):
+    app.cellHeight = (app.height-2*app.margin)/6
+    app.cellWidth = app.cellHeight*2/3
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
@@ -83,15 +87,15 @@ def drawSide(app, canvas, square, side, x1, y1, x2, y2):
     canvas.create_rectangle(x1, y1, x2, y2, width=3)
     if square == 'Chance':
         canvas.create_text((x1+x2)/2, (y1+y2)/2, anchor='center', text="CHANCE",
-        font="Courier 13")
+        font=f'Courier {app.text}')
     elif square == "Income Tax":
         canvas.create_text((x1+x2)/2, (y1+y2)/2, anchor='center', 
-        text="Income\nTax", font="Courier 12")
+        text="Income\nTax", font=f'Courier {app.text}')
     else:
         propertyName = square.getName()
         propertyName = propertyName.replace(' ', '\n')
         canvas.create_text((x1+x2)/2, (y1+y2)/2, anchor='center', 
-        text=propertyName, font="Courier 12")
+        text=propertyName, font=f'Courier {app.text}')
         color = square.getColor()
         if side == 'left':
             canvas.create_rectangle(x2-app.margin, y1, x2, y2, fill = color)
@@ -110,7 +114,8 @@ def drawBoard(app, canvas):
     app.cellHeight+app.margin, app.height-app.cellHeight-app.margin, 
     app.height-app.cellHeight-app.margin, width = 3)
     canvas.create_text(app.height/2, app.height/2-app.margin, 
-    text = "FANTASY  MONOPOLY", anchor = "center", font = "Helectiva 30 bold")
+    text = "FANTASY  MONOPOLY", anchor = "center", 
+    font = f"Helectiva {int(app.text*5/2)} bold")
     for i in range(len(app.boardBottom)):
         drawSide(app, canvas, app.boardBottom[i], 'bottom',
         app.margin+app.cellHeight+app.cellWidth*(i), 
@@ -132,13 +137,16 @@ def drawBoard(app, canvas):
         app.margin+(app.cellHeight*2)+(app.cellWidth*6),
         app.margin+app.cellHeight+app.cellWidth*(i+1))
     canvas.create_text(app.margin+app.cellHeight/2, app.margin+app.cellHeight/2,
-    text = 'Free\nParking', font = "Courier 16")
+    text = 'Free\nParking', font = f'Courier {int(4*app.text/3)}')
     canvas.create_text(app.height-app.margin-app.cellHeight/2,
-    app.margin+app.cellHeight/2, text = 'Go to\nJail!', font = "Courier 16")
+    app.margin+app.cellHeight/2, text = 'Go to\nJail!', 
+    font = f'Courier {int(4*app.text/3)}')
     canvas.create_text(app.margin+app.cellHeight/2, 
-    app.height-app.margin-app.cellHeight/2, text = "JAIL", font = "Courier 16")
+    app.height-app.margin-app.cellHeight/2, text = "JAIL", 
+    font = f'Courier {int(4*app.text/3)}')
     canvas.create_text(app.height-app.margin-app.cellHeight/2,
-    app.height-app.margin-app.cellHeight/2, text = 'GO!', font = "Courier 16")
+    app.height-app.margin-app.cellHeight/2, text = 'GO!', 
+    font = f'Courier {int(4*app.text/3)}')
 
 #note: pieces will be labeled with current position: bottom, left, top, right 
 # and the loop will go through 1 more than number of places for the square place
@@ -148,5 +156,6 @@ def redrawAll(app, canvas):
 
 def runMonopoly():
     runApp(width=1255, height=725)
+    
 
 runMonopoly()
