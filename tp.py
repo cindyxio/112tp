@@ -125,11 +125,8 @@ def roll(app, piece):
     d1 = random.randint(1, 6)
     d2 = random.randint(1, 6)
     moves = d1+d2
-    move = 0
-    while move < moves:
-        time.sleep(0.5)
+    for move in range(moves):
         movePiece(app, piece)
-        move += 1
     #getSquareFromPosition(app, piece, newSide, newIndex)
 
 def movePiece(app, piece):
