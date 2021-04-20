@@ -59,8 +59,8 @@ def appStarted(app):
     app.magic = Property('Magic Street', 220, 35, '+20*(self.level+3)', 
     'orange')
     app.mythical = Property('Mythical Road', 150, 15, '*1.5', 'orange')
-    app.boardBottom = [app.dream, app.fauna, app.cecile, 'Chance', 'Income Tax', 
-    'Chance'] #right to left: green
+    app.boardBottom = [app.dream, app.fauna, app.cecile, 'Chance', 
+    'Income Tax', 'Chance'] #right to left: green
     app.boardLeft = [app.sunset, app.deity, 'Chance', app.mythical, 
     'Income Tax', app.magic] #down to up: orange and yellow
     app.boardTop = [app.oracle, app.seer, app.coral, 'Income Tax', app.mermaid, 
@@ -74,6 +74,9 @@ def appStarted(app):
     app.buy = False #is True if a buy is currently taking place
     app.trade = False #is True if a trade is currently taking place
     app.cont = False
+    app.moving = False
+    app.moves = 0
+    app.time = time.time()
     '''
     Pieces are dicttionaries. 
 
@@ -131,23 +134,17 @@ def roll(app, piece):
     app.currentPiece = piece
     d1 = random.randint(1, 6)
     d2 = random.randint(1, 6)
-    moves = d1+d2
-    for move in range(moves):
-        movePiece(app, piece)
-    getSquareFromPosition(app, piece, piece['Position'][0], 
-    piece['Position'][1])
+    app.moves = d1+d2
+    print(app.moves)
+    app.moving = True
+    app.time = time.time()
 
 def movePiece(app, piece): #moves piece forward by one step
     sideIndex = app.order.index(piece['Position'][0])
     side = app.order[sideIndex]
     index = piece['Position'][1]
     if index < 6:
-        if side == 'bottom' and index == 5:
-            sideIndex = 1
-            side = app.order[sideIndex]
-            index = 0
-        else:
-            index += 1
+        index += 1
     else:
         if sideIndex < 3:
             sideIndex += 1
@@ -183,15 +180,22 @@ def getSquareFromPosition(app, piece, side, i):
         if square == 'GO!':
             piece['Money'] += 200
         if square == 'Jail':
-            piece['Jail'] -= 1
             if piece['Jail'] == 0:
-                piece['Money'] -= 50
+                pass
+            else:
+                piece['Jail'] -= 1
+                if piece['Jail'] == 0:
+                    piece['Money'] -= 50
         if square == 'Go to\nJail!':
             piece['Jail'] = 2
         if square == 'Chance':
             chanceCard(app, piece)
         if square == 'Income Tax':
             piece['Money'] -= 200
+        if app.currentPiece == app.player:
+            app.message = "Press Space to Finish Turn"
+        else:
+            app.message = "Press Space to Roll"
     else:
         app.currentProperty = square
         landOnProperty(app, piece, square)
@@ -209,9 +213,11 @@ def landOnProperty(app, piece, prop): #what happens when you land on property
                 app.message = "Press Y to Buy and N to Pass"
         else:
             if prop in app.player['Properties']:
-                tradeProperty(app, piece, prop)
+                app.trade = True
+                app.message = "Press Y to Trade and N to Pass"
             else:
-                buyProperty(app, piece, prop) 
+                app.buy = True
+                app.message = "Press Y to Buy and N to Pass"
     pass
 
 def buyProperty(app, piece, prop):
@@ -220,7 +226,10 @@ def buyProperty(app, piece, prop):
         app.buy = False
         app.cont = False
     if app.buy == False:
-        app.message = "Press Space to Finish Turn"
+        if app.currentPiece == app.player:
+            app.message = "Press Space to Finish Turn"
+        else:
+            app.message = "Press Space to Roll"
 
 def tradeProperty(app, piece, prop):
     app.message = "Press Y to Trade and N to Pass"
@@ -229,10 +238,19 @@ def tradeProperty(app, piece, prop):
         app.trade = False
         app.cont = False
     if app.trade == False:
-        app.message = "Press Space to Finish Turn"
+        if app.currentPiece == app.player:
+            app.message = "Press Space to Finish Turn"
+        else:
+            app.message = "Press Space to Roll"
 
 def chanceCard(app, piece): #what happens when you land on chance
     #have to create a deck of chance cards and a random choice
+    pass
+
+def checkMonopoly(app):
+    #checks after each buy/trade if there is all of one color in one player's 
+    # possession (if getColor in monopoly)
+    #now, you can choose to build after your turn
     pass
 
 def keyPressed(app, event):
@@ -244,20 +262,20 @@ def keyPressed(app, event):
         if event.key == "N" or event.key == "n":
             app.buy = False
         buyProperty(app, app.currentPiece, app.currentProperty)
+        #press i for information
     elif app.trade:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.trade = False
         tradeProperty(app, app.currentPiece, app.currentProperty)
+        #list properties and use up and down keys to go through with i for info
     elif event.key == 'Space':
         if app.turn:
             roll(app, app.player)
-            print(app.player)
             app.turn = False
         else:
             roll(app, app.ai)
-            app.message = "Press Space to Roll"
             app.turn = True
     pass
 
@@ -266,8 +284,20 @@ def mousePressed(app, event):
     #click on properties to view their card (and stats)
     pass
 
-def timerStarted(app, event):
+def timerFired(app):
     #ends game after 20 minutes if no one has gone bankrupt yet
+    if app.moving:
+        if time.time()-app.time > 0.5:
+            app.time = time.time()
+            if app.moves != 0:
+                movePiece(app, app.currentPiece)
+                print(app.moves)
+                app.moves -= 1
+            else:
+                app.moving = False
+                getSquareFromPosition(app, app.currentPiece, 
+                app.currentPiece['Position'][0], 
+                app.currentPiece['Position'][1])
     pass
 
 def rgbString(r, g, b):
@@ -309,7 +339,7 @@ def drawBoard(app, canvas):
     font = f"Helectiva {int(app.text*5/2)} bold")
     canvas.create_text(app.height/2, app.height/2, 
     text = app.message, anchor = "n", 
-    font = f"Helectiva {int(app.text*2)} ")
+    font = f"Helectiva {int(app.text*1.5)} ")
     for i in range(len(app.boardBottom)):
         drawSide(app, canvas, app.boardBottom[i], 'bottom',
         app.height-app.margin-app.cellHeight-app.cellWidth*(i+1), 
