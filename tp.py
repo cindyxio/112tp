@@ -66,7 +66,7 @@ def appStarted(app):
     app.boardTop = [app.oracle, app.seer, app.coral, 'Income Tax', app.mermaid, 
     'Chance'] #left to right: blue and red
     app.boardRight = ['Income Tax', 'Chance', app.fae, 'Chance', app.elven, 
-    app.dragon] #down: purple
+    app.dragon] #up to down: purple
     app.order = ['bottom', 'left', 'top', 'right'] #order of boardSides
     app.turn = True
     app.gameOver = False
