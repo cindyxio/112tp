@@ -4,6 +4,7 @@
 from cmu_112_graphics_cindyxiotp import *
 import tkinter as tk
 import random, math, time
+from time import sleep
 
 class Property(object):
     #priceChange comes in the form of a string with a math operator and price
@@ -41,7 +42,7 @@ def appStarted(app):
     app.cellWidth = app.cellHeight*2/3
     app.text = int(app.height//60)
     app.radius = app.text
-    app.fernalia = Property('Fernalia Court', 150, 17, '+100*(self.level+1)', 
+    app.fauna = Property('Fauna Court', 150, 17, '+100*(self.level+1)', 
     'green')
     app.cecile = Property('Cecile Circle', 70, 5, '+50', 'green')
     app.dream = Property("Dream Loop", 314, 13, '*1.3', 'green')
@@ -58,19 +59,36 @@ def appStarted(app):
     app.magic = Property('Magic Street', 220, 35, '+20*(self.level+3)', 
     'orange')
     app.mythical = Property('Mythical Road', 150, 15, '*1.5', 'orange')
-    app.boardBottom = ['Chance', 'Income Tax', 'Chance', app.cecile, 
-    app.fernalia, app.dream] #left to right: green
-    app.boardLeft = [app.magic, 'Income Tax', app.mythical, 'Chance', app.deity, 
-    app.sunset] #up to down: orange and yellow
+    app.boardBottom = [app.dream, app.fauna, app.cecile, 'Chance', 'Income Tax', 
+    'Chance'] #right to left: green
+    app.boardLeft = [app.sunset, app.deity, 'Chance', app.mythical, 
+    'Income Tax', app.magic] #down to up: orange and yellow
     app.boardTop = [app.oracle, app.seer, app.coral, 'Income Tax', app.mermaid, 
-    'Chance'] #blue and red
+    'Chance'] #left to right: blue and red
     app.boardRight = ['Income Tax', 'Chance', app.fae, 'Chance', app.elven, 
-    app.dragon] #purple
-    app.order = ['bottom', 'left', 'top', 'right']
+    app.dragon] #down: purple
+    app.order = ['bottom', 'left', 'top', 'right'] #order of boardSides
+    app.turn = True
+    app.gameOver = False
+    '''
+    Pieces are dicttionaries. 
+
+    'Position' is represented by a tuple of (boardSide, index). Note if i == 6,
+    this means that i is the index of the corner piece (which is not part of 
+    boardSide list): 'Go!' is the corner piece for the right side, 'Jail' for 
+    the bottom, 'Free Parking' for the left, and 'Go to Jail!' for the top.
+
+    'Jail' holds how many turns left in jail there is.
+
+    'Monopoly' holds a list of the colors the piece has a monopoly of.
+
+    'Money' holds the amount of money the piece has and 'Properties' holds a 
+    list of properties the piece owns.
+    '''
     app.player = {'Position': ('right', 6),'Money': 1500, 'Jail': 0,
-    'Properties': None}
+    'Properties': None, 'Monopoly': None}
     app.ai = {'Position': ('right', 6),'Money': 1500, 'Jail': 0,
-    'Properties': None}
+    'Properties': None, 'Monopoly': None}
 
 def getPixelsFromPosition(app, side, i):
     if side == 'right':
@@ -82,9 +100,9 @@ def getPixelsFromPosition(app, side, i):
             y2 = app.height-app.margin
     if side == 'left':
         x1 = app.margin
-        y1 = app.margin+app.cellHeight+app.cellWidth*i
+        y1 = app.height-app.margin-app.cellHeight-app.cellWidth*(i+1) 
         x2 = app.margin+app.cellHeight
-        y2 = app.margin+app.cellHeight+app.cellWidth*(i+1)
+        y2 = app.height-app.margin-app.cellHeight-app.cellWidth*(i)
         if i == 6:
             y1 = app.margin
     if side == 'top':
@@ -95,28 +113,39 @@ def getPixelsFromPosition(app, side, i):
         if i == 6:
             x2 = app.height-app.margin
     if side == 'bottom':
-        x1 = app.margin+app.cellHeight+app.cellWidth*(i) 
+        x1 = app.height-app.margin-app.cellHeight-app.cellWidth*(i+1) 
         y1 = app.height-app.margin-app.cellHeight
-        x2 = app.margin+app.cellHeight+app.cellWidth*(i+1)
+        x2 = app.height-app.margin-app.cellHeight-app.cellWidth*(i)
         y2 = app.height-app.margin
         if i == 6:
             x1 = app.margin
     return x1, y1, x2, y2
 
-def movePiece(app, piece, moves):
-    temp = piece['Position'][1]+moves
-    newSide = piece['Position'][0]
-    sideChanges = temp//6
-    newIndex = temp%6
-    sideIndex = app.order.index(currentSide)
-    for sideChange in range(sideChanges):
+def roll(app, piece):
+    d1 = random.randint(1, 6)
+    d2 = random.randint(1, 6)
+    moves = d1+d2
+    move = 0
+    while move < moves:
+        time.sleep(0.5)
+        movePiece(app, piece)
+        move += 1
+    #getSquareFromPosition(app, piece, newSide, newIndex)
+
+def movePiece(app, piece):
+    sideIndex = app.order.index(piece['Position'][0])
+    side = app.order[sideIndex]
+    index = piece['Position'][1]
+    if index < 6:
+        index += 1
+    else:
         if sideIndex < 3:
             sideIndex += 1
         else:
             sideIndex = 0
-        newSide = app.order[sideIndex]
-    piece['Position'] = (newSide, newIndex)
-    #getSquareFromPosition(app, piece, newSide, newIndex)
+        side = app.order[sideIndex]
+        index = 0
+    piece['Position'] = (side, index)
 
 def getSquareFromPosition(app, piece, side, i):
     if side == 'right':
@@ -162,12 +191,21 @@ def chanceCard(app): #what happens when you land on chance
     pass
 
 def keyPressed(app, event):
+    if app.gameOver: return
+    if event.key == 'Space':
+        if app.turn:
+            roll(app, app.player)
+            app.turn = False
+        else:
+            roll(app, app.ai)
+            app.turn = True
     pass
 
 def mousePressed(app, event):
     pass
 
 def timerStarted(app, event):
+    
     pass
 
 def rgbString(r, g, b):
@@ -209,9 +247,9 @@ def drawBoard(app, canvas):
     font = f"Helectiva {int(app.text*5/2)} bold")
     for i in range(len(app.boardBottom)):
         drawSide(app, canvas, app.boardBottom[i], 'bottom',
-        app.margin+app.cellHeight+app.cellWidth*(i), 
+        app.height-app.margin-app.cellHeight-app.cellWidth*(i+1), 
         app.height-app.margin-app.cellHeight, 
-        app.margin+app.cellHeight+app.cellWidth*(i+1), app.height-app.margin)
+        app.height-app.margin-app.cellHeight-app.cellWidth*(i), app.height-app.margin)
     for i in range(len(app.boardTop)):
         drawSide(app, canvas, app.boardTop[i], 'top',
         app.margin+app.cellHeight+app.cellWidth*(i), 
@@ -219,8 +257,9 @@ def drawBoard(app, canvas):
         app.margin+app.cellHeight)
     for i in range(len(app.boardLeft)):
         drawSide(app, canvas, app.boardLeft[i], 'left', app.margin, 
-        app.margin+app.cellHeight+app.cellWidth*i, app.margin+app.cellHeight,
-        app.margin+app.cellHeight+app.cellWidth*(i+1))
+        app.height-app.margin-app.cellHeight-app.cellWidth*(i+1), 
+        app.margin+app.cellHeight,
+        app.height-app.margin-app.cellHeight-app.cellWidth*(i))
     for i in range(len(app.boardRight)):
         drawSide(app, canvas, app.boardRight[i], 'right',
         app.margin+app.cellHeight+(app.cellWidth*6), 
