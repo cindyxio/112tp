@@ -93,6 +93,8 @@ def appStarted(app):
     'Properties': [], 'Monopoly': []}
     app.ai = {'Position': ('right', 6),'Money': 1500, 'Jail': 0,
     'Properties': [], 'Monopoly': []}
+    app.currentPiece = app.player
+    app.currentProperty = None
 
 def getPixelsFromPosition(app, side, i):
     if side == 'right':
@@ -126,6 +128,7 @@ def getPixelsFromPosition(app, side, i):
     return x1, y1, x2, y2
 
 def roll(app, piece):
+    app.currentPiece = piece
     d1 = random.randint(1, 6)
     d2 = random.randint(1, 6)
     moves = d1+d2
@@ -134,7 +137,7 @@ def roll(app, piece):
     getSquareFromPosition(app, piece, piece['Position'][0], 
     piece['Position'][1])
 
-def movePiece(app, piece):
+def movePiece(app, piece): #moves piece forward by one step
     sideIndex = app.order.index(piece['Position'][0])
     side = app.order[sideIndex]
     index = piece['Position'][1]
@@ -176,6 +179,7 @@ def getSquareFromPosition(app, piece, side, i):
         else:
             square = app.boardBottom[i]
     if isinstance(square, str):
+        app.currentProperty = None
         if square == 'GO!':
             piece['Money'] += 200
         if square == 'Jail':
@@ -189,6 +193,7 @@ def getSquareFromPosition(app, piece, side, i):
         if square == 'Income Tax':
             piece['Money'] -= 200
     else:
+        app.currentProperty = square
         landOnProperty(app, piece, square)
 
 def landOnProperty(app, piece, prop): #what happens when you land on property
@@ -197,9 +202,11 @@ def landOnProperty(app, piece, prop): #what happens when you land on property
     else:
         if piece == app.player:
             if prop in app.ai['Properties']:
-                tradeProperty(app, piece, prop)
+                app.trade = True
+                app.message = "Press Y to Trade and N to Pass"
             else:
-                buyProperty(app, piece, prop)
+                app.buy = True
+                app.message = "Press Y to Buy and N to Pass"
         else:
             if prop in app.player['Properties']:
                 tradeProperty(app, piece, prop)
@@ -208,11 +215,8 @@ def landOnProperty(app, piece, prop): #what happens when you land on property
     pass
 
 def buyProperty(app, piece, prop):
-    app.message = "Press Y to Buy and N to Pass"
-    app.buy = True
-    #HOW DO YOU CALL KEYPRESSED HERE AND RETURN TO THE BUYPROPERTY FUNCTION
     if app.cont:
-        piece['Properties'] += prop
+        piece['Properties'].append(prop)
         app.buy = False
         app.cont = False
     if app.buy == False:
@@ -220,11 +224,10 @@ def buyProperty(app, piece, prop):
 
 def tradeProperty(app, piece, prop):
     app.message = "Press Y to Trade and N to Pass"
-    app.trade = True
-    app.cont = False
     if app.cont:
         #trade
         app.trade = False
+        app.cont = False
     if app.trade == False:
         app.message = "Press Space to Finish Turn"
 
@@ -235,24 +238,27 @@ def chanceCard(app, piece): #what happens when you land on chance
 def keyPressed(app, event):
     #game will be played mostly in keyPressed
     if app.gameOver: return
-    if event.key == 'Space':
-        if app.turn:
-            roll(app, app.player)
-            app.turn = False
-        else:
-            roll(app, app.ai)
-            app.message = "Press Space to Roll"
-            app.turn = True
     if app.buy:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.buy = False
-    if app.trade:
+        buyProperty(app, app.currentPiece, app.currentProperty)
+    elif app.trade:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.trade = False
+        tradeProperty(app, app.currentPiece, app.currentProperty)
+    elif event.key == 'Space':
+        if app.turn:
+            roll(app, app.player)
+            print(app.player)
+            app.turn = False
+        else:
+            roll(app, app.ai)
+            app.message = "Press Space to Roll"
+            app.turn = True
     pass
 
 def mousePressed(app, event):
