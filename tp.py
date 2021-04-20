@@ -3,6 +3,7 @@
 
 from cmu_112_graphics_cindyxiotp import *
 import tkinter as tk
+import random, math, time
 
 class Property(object):
     #priceChange comes in the form of a string with a math operator and price
@@ -12,7 +13,7 @@ class Property(object):
         self.cost = cost
         self.priceChange = priceChange
         self.color = color
-        #other variables: owner, whether monopolized...
+        #other variables might needed: owner, whether monopolized...
         self.level = 0
     def getName(self):
         return self.name
@@ -27,21 +28,19 @@ class Property(object):
             return f'{self.level} houses'
         else:
             return 'Hotel'
-    def build(self): #self.monopoly must be True to build
+    def build(self): #note: monopoly must be True to build
         self.rent = eval(str(self.rent)+self.priceChange)
         self.level += 1
     def monopoly(self):
         if self.level == 0:
             self.rent = self.rent*2
 
-
 def appStarted(app):
     app.margin = 20
     app.cellHeight = (app.height-2*app.margin)/6
     app.cellWidth = app.cellHeight*2/3
     app.text = int(app.height//60)
-    app.player = {'Money': 1500, 'Properties': None}
-    app.AI = {'Money': 1500, 'Properties': None}
+    app.radius = app.text
     app.fernalia = Property('Fernalia Court', 150, 17, '+100*(self.level+1)', 
     'green')
     app.cecile = Property('Cecile Circle', 70, 5, '+50', 'green')
@@ -67,6 +66,99 @@ def appStarted(app):
     'Chance'] #blue and red
     app.boardRight = ['Income Tax', 'Chance', app.fae, 'Chance', app.elven, 
     app.dragon] #purple
+    app.order = ['bottom', 'left', 'top', 'right']
+    app.player = {'Position': ('right', 6),'Money': 1500, 'Jail': 0,
+    'Properties': None}
+    app.ai = {'Position': ('right', 6),'Money': 1500, 'Jail': 0,
+    'Properties': None}
+
+def getPixelsFromPosition(app, side, i):
+    if side == 'right':
+        x1 = app.margin+app.cellHeight+(app.cellWidth*6)
+        y1 = app.margin+app.cellHeight+app.cellWidth*i
+        x2 = app.margin+(app.cellHeight*2)+(app.cellWidth*6)
+        y2 = app.margin+app.cellHeight+app.cellWidth*(i+1)
+        if i == 6:
+            y2 = app.height-app.margin
+    if side == 'left':
+        x1 = app.margin
+        y1 = app.margin+app.cellHeight+app.cellWidth*i
+        x2 = app.margin+app.cellHeight
+        y2 = app.margin+app.cellHeight+app.cellWidth*(i+1)
+        if i == 6:
+            y1 = app.margin
+    if side == 'top':
+        x1 = app.margin+app.cellHeight+app.cellWidth*(i)
+        y1 = app.margin
+        x2 = app.margin+app.cellHeight+app.cellWidth*(i+1) 
+        y2 = app.margin+app.cellHeight
+        if i == 6:
+            x2 = app.height-app.margin
+    if side == 'bottom':
+        x1 = app.margin+app.cellHeight+app.cellWidth*(i) 
+        y1 = app.height-app.margin-app.cellHeight
+        x2 = app.margin+app.cellHeight+app.cellWidth*(i+1)
+        y2 = app.height-app.margin
+        if i == 6:
+            x1 = app.margin
+    return x1, y1, x2, y2
+
+def movePiece(app, piece, moves):
+    temp = piece['Position'][1]+moves
+    newSide = piece['Position'][0]
+    sideChanges = temp//6
+    newIndex = temp%6
+    sideIndex = app.order.index(currentSide)
+    for sideChange in range(sideChanges):
+        if sideIndex < 3:
+            sideIndex += 1
+        else:
+            sideIndex = 0
+        newSide = app.order[sideIndex]
+    piece['Position'] = (newSide, newIndex)
+    #getSquareFromPosition(app, piece, newSide, newIndex)
+
+def getSquareFromPosition(app, piece, side, i):
+    if side == 'right':
+        if i == 6:
+            square = 'GO!'
+        else:
+            square = app.boardRight[i]
+    if side == 'left':
+        if i == 6:
+            square = 'Free\nParking'
+        else:
+            square = app.boardLeft[i]
+    if side == 'top':
+        if i == 6:
+            square = 'Go to\nJail!'
+        else:
+            square = app.boardTop[i]
+    if side == 'bottom':
+        if i == 6:
+            square = 'JAIL'
+        else:
+            square = app.boardBottom[i]
+    if isinstance(square, str):
+        if square == 'GO!':
+            piece['Money'] += 200
+        if square == 'Jail':
+            piece['Jail'] -= 1
+            if piece['Jail'] == 0:
+                piece['Money'] -= 50
+        if square == 'Go to\nJail!':
+            piece['Jail'] = 2
+        if square == 'Chance':
+            chanceCard(app)
+        if square == 'Income Tax':
+            piece['Money'] -= 200
+    else:
+        landOnProperty(app, square)
+
+def landOnProperty(app, property): #what happens when you land on property
+    pass
+
+def chanceCard(app): #what happens when you land on chance
     pass
 
 def keyPressed(app, event):
@@ -76,8 +168,7 @@ def mousePressed(app, event):
     pass
 
 def timerStarted(app, event):
-    app.cellHeight = (app.height-2*app.margin)/6
-    app.cellWidth = app.cellHeight*2/3
+    pass
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
@@ -148,14 +239,21 @@ def drawBoard(app, canvas):
     app.height-app.margin-app.cellHeight/2, text = 'GO!', 
     font = f'Courier {int(4*app.text/3)}')
 
-#note: pieces will be labeled with current position: bottom, left, top, right 
-# and the loop will go through 1 more than number of places for the square place
+def drawPieces(app, canvas):
+    playerSide = app.player['Position'][0]
+    playerIndex = app.player['Position'][1]
+    x1, y1, x2, y2 = getPixelsFromPosition(app, playerSide, playerIndex)
+    canvas.create_oval(x1, y1, x1+2*app.radius, y1+2*app.radius, fill = 'white')
+    aiSide = app.ai['Position'][0]
+    aiIndex = app.ai['Position'][1]
+    v1, w1, v2, w2 = getPixelsFromPosition(app, aiSide, aiIndex)
+    canvas.create_oval(v2, w2, v2-2*app.radius, w2-2*app.radius, fill = 'black')
 
 def redrawAll(app, canvas):
     drawBoard(app, canvas)
+    drawPieces(app, canvas)
 
 def runMonopoly():
     runApp(width=1255, height=725)
     
-
 runMonopoly()
