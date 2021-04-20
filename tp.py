@@ -4,7 +4,6 @@
 from cmu_112_graphics_cindyxiotp import *
 import tkinter as tk
 import random, math, time
-from time import sleep
 
 class Property(object):
     #priceChange comes in the form of a string with a math operator and price
