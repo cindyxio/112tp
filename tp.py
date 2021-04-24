@@ -5,16 +5,29 @@ from cmu_112_graphics_cindyxiotp import *
 import tkinter as tk
 import random, math, time
 
+'''
+AI Key Points:
+- A point system: 
+- will trade a property owned below a certain cutoff
+- will offer trade for opponent's property above cutoff
+- Points of player's prop increase when player is closer to monopoly in color
+- will buy above a certain cutoff (points increase closer to monopoly)
+- points decrease when AI is losing money
+'''
+
 class Property(object):
-    #priceChange comes in the form of a string with a math operator and price
     def __init__(self, name, cost, rent, priceChange, color):
         self.name = name
         self.rent = rent
-        self.cost = cost
-        self.priceChange = priceChange
+        self.cost = cost #cost of buying the property
+        self.houseCost = cost//2 #cost of building a house
+        self.priceChange = priceChange #priceChange comes in the form of a 
+        #string with a math operator and price: additional price of rent every 
+        # time a house is built
         self.color = color
         #other variables might needed: owner, whether monopolized...
         self.level = 0
+        #self.points -> for the AI's points system
     def getName(self):
         return self.name
     def getCost(self):
@@ -55,29 +68,35 @@ def appStarted(app):
     app.deity = Property('Deity Run', 400, 25, '*2', 'yellow')
     app.sunset = Property('Sunset Drive', 220, 35, '+20*(self.level+3)', 
     'yellow')
-    app.magic = Property('Magic Street', 220, 35, '+20*(self.level+3)', 
+    app.witch = Property('Witch Street', 220, 35, '+20*(self.level+3)', 
     'orange')
     app.mythical = Property('Mythical Road', 150, 15, '*1.5', 'orange')
+
     app.boardBottom = [app.dream, app.fauna, app.cecile, 'Chance', 
-    'Income Tax', 'Chance'] #right to left: green
+    'Magic Tax', 'Chance'] #right to left: green
     app.boardLeft = [app.sunset, app.deity, 'Chance', app.mythical, 
-    'Income Tax', app.magic] #down to up: orange and yellow
-    app.boardTop = [app.oracle, app.seer, app.coral, 'Income Tax', app.mermaid, 
+    'Magic Tax', app.witch] #down to up: orange and yellow
+    app.boardTop = [app.oracle, app.seer, app.coral, 'Magic Tax', app.mermaid, 
     'Chance'] #left to right: blue and red
-    app.boardRight = ['Income Tax', 'Chance', app.fae, 'Chance', app.elven, 
+    app.boardRight = ['Magic Tax', 'Chance', app.fae, 'Chance', app.elven, 
     app.dragon] #up to down: purple
-    app.order = ['bottom', 'left', 'top', 'right'] #order of boardSides
-    app.turn = True
+    app.order = ['bottom', 'left', 'top', 'right'] #order of boardSides 
+    
+    app.turn = True #is True when it's the player's turn
     app.message = "Press Space to Roll"
     app.gameOver = False
+    app.chance = None #holds the message of the landed chance card
     app.buy = False #is True if a buy is currently taking place
     app.trade = False #is True if a trade is currently taking place
-    app.cont = False
-    app.moving = False
+    app.sell = False #is True if a sell is currently taking place
+    app.cont = False #is True if player decides to buy/trade/sell a property
+    app.moving = False #is True when pieces are moving across board (takes no 
+    #user input then)
     app.moves = 0
+    app.start = time.time()
     app.time = time.time()
     '''
-    Pieces are dicttionaries. 
+    Pieces (app.player and app.ai) are dicttionaries. 
 
     'Position' is represented by a tuple of (boardSide, index). Note if i == 6,
     this means that i is the index of the corner piece (which is not part of 
@@ -97,6 +116,7 @@ def appStarted(app):
     'Properties': [], 'Monopoly': []}
     app.currentPiece = app.player
     app.currentProperty = None
+    app.winner = None
 
 def getPixelsFromPosition(app, side, i):
     if side == 'right':
@@ -129,12 +149,11 @@ def getPixelsFromPosition(app, side, i):
             x1 = app.margin
     return x1, y1, x2, y2
 
-def roll(app, piece):
+def roll(app, piece): #rolls two random die and sets up movement of piece
     app.currentPiece = piece
     d1 = random.randint(1, 6)
     d2 = random.randint(1, 6)
     app.moves = d1+d2
-    print(app.moves)
     app.moving = True
     app.time = time.time()
 
@@ -151,6 +170,8 @@ def movePiece(app, piece): #moves piece forward by one step
             sideIndex = 0
         side = app.order[sideIndex]
         index = 0
+    if side == 'right' and index == 6: #+$200 every time Go is passed
+        piece['Money'] += 200
     piece['Position'] = (side, index)
 
 def getSquareFromPosition(app, piece, side, i):
@@ -161,12 +182,12 @@ def getSquareFromPosition(app, piece, side, i):
             square = app.boardRight[i]
     if side == 'left':
         if i == 6:
-            square = 'Free\nParking'
+            square = 'Free Parking'
         else:
             square = app.boardLeft[i]
     if side == 'top':
         if i == 6:
-            square = 'Go to\nJail!'
+            square = 'Go to Jail!'
         else:
             square = app.boardTop[i]
     if side == 'bottom':
@@ -176,20 +197,12 @@ def getSquareFromPosition(app, piece, side, i):
             square = app.boardBottom[i]
     if isinstance(square, str):
         app.currentProperty = None
-        if square == 'GO!':
-            piece['Money'] += 200
-        if square == 'Jail':
-            if piece['Jail'] == 0:
-                pass
-            else:
-                piece['Jail'] -= 1
-                if piece['Jail'] == 0:
-                    piece['Money'] -= 50
-        if square == 'Go to\nJail!':
+        if square == 'Go to Jail!':
             piece['Jail'] = 2
+            piece['Position'] = ('bottom', 6)
         if square == 'Chance':
             chanceCard(app, piece)
-        if square == 'Income Tax':
+        if square == 'Magic Tax':
             piece['Money'] -= 200
         if app.currentPiece == app.player:
             app.message = "Press Space to Finish Turn"
@@ -201,10 +214,12 @@ def getSquareFromPosition(app, piece, side, i):
 
 def landOnProperty(app, piece, prop): #what happens when you land on property
     if prop in piece['Properties']:
-        app.message = "Press Space to Finish Turn"
+        app.sell = True
+        app.message = "Press Y to Sell and N to Pass"
     else:
         if piece == app.player:
             if prop in app.ai['Properties']:
+                piece['Money'] -= prop.getRent()
                 app.trade = True
                 app.message = "Press Y to Trade and N to Pass"
             else:
@@ -212,6 +227,7 @@ def landOnProperty(app, piece, prop): #what happens when you land on property
                 app.message = "Press Y to Buy and N to Pass"
         else:
             if prop in app.player['Properties']:
+                piece['Money'] -= prop.getRent()
                 app.trade = True
                 app.message = "Press Y to Trade and N to Pass"
             else:
@@ -222,9 +238,24 @@ def landOnProperty(app, piece, prop): #what happens when you land on property
 def buyProperty(app, piece, prop):
     if app.cont:
         piece['Properties'].append(prop)
+        piece['Money'] -= prop.getCost()
+        checkMonopoly(app, piece)
         app.buy = False
         app.cont = False
     if app.buy == False:
+        if app.currentPiece == app.player:
+            app.message = "Press Space to Finish Turn"
+        else:
+            app.message = "Press Space to Roll"
+
+def sellProperty(app, piece, prop):
+    if app.cont:
+        piece['Properties'].remove(prop)
+        piece['Money'] += prop.getCost()
+        checkMonopoly(app, piece)
+        app.sell = False
+        app.cont = False
+    if app.sell == False:
         if app.currentPiece == app.player:
             app.message = "Press Space to Finish Turn"
         else:
@@ -234,6 +265,7 @@ def tradeProperty(app, piece, prop):
     app.message = "Press Y to Trade and N to Pass"
     if app.cont:
         #trade
+        checkMonopoly(app, piece)
         app.trade = False
         app.cont = False
     if app.trade == False:
@@ -243,54 +275,121 @@ def tradeProperty(app, piece, prop):
             app.message = "Press Space to Roll"
 
 def chanceCard(app, piece): #what happens when you land on chance
-    #have to create a deck of chance cards and a random choice
+    cards = ['Go to Jail!', 'Materialize $50', 'Teleport to Go!', 
+    'Materialize $200', 'Go to Jail!', 'Teleport to Witch Street', 
+    'Teleport to Fauna Street', '$15 vanished', '$50 vanished']
+    cardIndex = random.randint(0, len(cards)-1)
+    app.chance = cards[cardIndex]
+    if cards[cardIndex] == 'Go to Jail!':
+        piece['Jail'] = 2
+        piece['Position'] = ('bottom', 6)
+    splitCard = cards[cardIndex].split(' ')
+    if splitCard[0] == 'Materialize':
+        money = int(splitCard[1][1:])
+        piece['Money'] += money
+    elif splitCard[0] == 'Teleport':
+        if splitCard[len(splitCard)-1] == "Go!":
+            piece['Position'] = ('right', 6)
+            piece['Money'] += 200
+        else:
+            if splitCard[len(splitCard)-2] == "Fauna":
+                piece['Position'] = ('bottom', 0)
+            else:
+                piece['Position'] = ('left', 5)
+    elif splitCard[len(splitCard)-1] == "vanished":
+        money = int(splitCard[0][1:])
+        piece['Money'] -= money
+    if app.currentPiece == app.player:
+        app.message = "Press Space to Finish Turn"
+    else:
+        app.message = "Press Space to Roll"
     pass
 
-def checkMonopoly(app):
-    #checks after each buy/trade if there is all of one color in one player's 
+def checkMonopoly(app, piece):
+    #checks after each play if there is all of one color in one player's 
     # possession (if getColor in monopoly)
     #now, you can choose to build after your turn
+    colorDict = {}
+    for prop in piece['Properties']:
+        colorDict[prop.getColor()] = colorDict.get(prop.getColor(), 0) + 1
+    for color in colorDict:
+        if colorDict[color] >= 2:
+            if color != 'green' and color != 'purple':
+                piece['Monopoly'].append(color)
+            else:
+                if colorDict[color] == 3:
+                    piece['Monopoly'].append(color)
     pass
 
 def keyPressed(app, event):
     #game will be played mostly in keyPressed
-    if app.gameOver: return
+    #press p for list of all properties and their info (including who owned)
+    #press i for instructions to the game
+    if app.gameOver or app.moving: return
     if app.buy:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.buy = False
         buyProperty(app, app.currentPiece, app.currentProperty)
-        #press i for information
+    elif app.sell:
+        if event.key == "Y" or event.key == "y":
+            app.cont = True
+        if event.key == "N" or event.key == "n":
+            app.sell = False
+        sellProperty(app, app.currentPiece, app.currentProperty)
     elif app.trade:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.trade = False
         tradeProperty(app, app.currentPiece, app.currentProperty)
-        #list properties and use up and down keys to go through with i for info
+        #list properties and use up and down keys
     elif event.key == 'Space':
+        app.chance = None
         if app.turn:
-            roll(app, app.player)
+            if app.player['Jail'] == 0:
+                roll(app, app.player)
+                checkMonopoly(app, app.player)
+            else:
+                app.player['Jail'] -= 1
+                if app.player['Jail'] == 0:
+                    app.player['Money'] -= 50
+                app.message = "Press Space to Finish Turn"
             app.turn = False
-        else:
-            roll(app, app.ai)
+        else: 
+            if app.ai['Jail'] == 0:
+                roll(app, app.ai)
+                checkMonopoly(app, app.ai)
+            else:
+                app.ai['Jail'] -= 1
+                if app.ai['Jail'] == 0:
+                    app.ai['Money'] -= 50
+                app.message = "Press Space to Roll"
             app.turn = True
     pass
 
-def mousePressed(app, event):
+def mousePressed(app, event): #extra feature
     #click on players to view their cards
     #click on properties to view their card (and stats)
+    if app.gameOver or app.moving: return
     pass
 
 def timerFired(app):
     #ends game after 20 minutes if no one has gone bankrupt yet
-    if app.moving:
-        if time.time()-app.time > 0.5:
+    if (time.time()-app.start > 1200 or app.player['Money'] <= 0 or 
+    app.ai['Money'] <= 0):
+        app.gameOver = True
+        app.message == 'Game Over'
+        if app.player['Money'] > app.ai['Money']:
+            app.winner = app.player
+        elif app.ai['Money'] > app.player['Money']:
+            app.winner = app.ai
+    elif app.moving:
+        if time.time()-app.time > 0.25:
             app.time = time.time()
             if app.moves != 0:
                 movePiece(app, app.currentPiece)
-                print(app.moves)
                 app.moves -= 1
             else:
                 app.moving = False
@@ -308,9 +407,9 @@ def drawSide(app, canvas, square, side, x1, y1, x2, y2):
     if square == 'Chance':
         canvas.create_text((x1+x2)/2, (y1+y2)/2, anchor='center', text="CHANCE",
         font=f'Courier {app.text}')
-    elif square == "Income Tax":
+    elif square == "Magic Tax":
         canvas.create_text((x1+x2)/2, (y1+y2)/2, anchor='center', 
-        text="Income\nTax", font=f'Courier {app.text}')
+        text="Magic\nTax", font=f'Courier {app.text}')
     else:
         propertyName = square.getName()
         propertyName = propertyName.replace(' ', '\n')
@@ -319,26 +418,56 @@ def drawSide(app, canvas, square, side, x1, y1, x2, y2):
         color = square.getColor()
         if side == 'left':
             canvas.create_rectangle(x2-app.margin, y1, x2, y2, fill = color)
+            if square in app.player['Properties']:
+                canvas.create_rectangle(x1, y1, x1+app.margin, y2, 
+                fill = 'white')
+            elif square in app.ai['Properties']:
+                canvas.create_rectangle(x1, y1, x1+app.margin, y2, 
+                fill = 'black')
         elif side == 'right':
             canvas.create_rectangle(x1, y1, x1+app.margin, y2, fill = color)
+            if square in app.player['Properties']:
+                canvas.create_rectangle(x2-app.margin, y1, x2, y2, 
+                fill = 'white')
+            elif square in app.ai['Properties']:
+                canvas.create_rectangle(x2-app.margin, y1, x2, y2, 
+                fill = 'black')
         elif side == 'top':
             canvas.create_rectangle(x1, y2-app.margin, x2, y2, fill = color)
+            if square in app.player['Properties']:
+                canvas.create_rectangle(x1, y1, x2, y1+app.margin, 
+                fill = 'white')
+            elif square in app.ai['Properties']:
+                canvas.create_rectangle(x1, y1, x2, y1+app.margin, 
+                fill = 'black')
         else:
             canvas.create_rectangle(x1, y1, x2, y1+app.margin, fill = color)
+            if square in app.player['Properties']:
+                canvas.create_rectangle(x1, y2-app.margin, x2, y2, 
+                fill = 'white')
+            elif square in app.ai['Properties']:
+                canvas.create_rectangle(x1, y2-app.margin, x2, y2, 
+                fill = 'black')
+        
 
 def drawBoard(app, canvas):
     monopolyGreen = rgbString(204, 255, 204)
+
     canvas.create_rectangle(app.margin, app.margin, app.height-app.margin,
     app.height-app.margin, width = 5, fill = monopolyGreen)
+
     canvas.create_rectangle(app.cellHeight+app.margin, 
     app.cellHeight+app.margin, app.height-app.cellHeight-app.margin, 
     app.height-app.cellHeight-app.margin, width = 3)
+
     canvas.create_text(app.height/2, app.height/2-app.margin, 
     text = "FANTASY  MONOPOLY", anchor = "center", 
-    font = f"Helectiva {int(app.text*5/2)} bold")
+    font = f"Helectiva {int(app.text*5/2)} bold", fill = 'purple4')
+
     canvas.create_text(app.height/2, app.height/2, 
     text = app.message, anchor = "n", 
-    font = f"Helectiva {int(app.text*1.5)} ")
+    font = f"Helectiva {int(app.text*1.5)}")
+
     for i in range(len(app.boardBottom)):
         drawSide(app, canvas, app.boardBottom[i], 'bottom',
         app.height-app.margin-app.cellHeight-app.cellWidth*(i+1), 
@@ -382,9 +511,45 @@ def drawPieces(app, canvas):
     v1, w1, v2, w2 = getPixelsFromPosition(app, aiSide, aiIndex)
     canvas.create_oval(v2, w2, v2-2*app.radius, w2-2*app.radius, fill = 'black')
 
+def drawGameOver(app, canvas):
+    if app.gameOver:
+        color = 'red'
+        if app.winner == None:
+            canvas.create_text(app.height/2, app.height/2+int(app.text*2), 
+            text = "Tie!", anchor = "n", 
+            font = f"Helectiva {int(app.text*2)}", fill = color)
+        elif app.winner == app.player:
+            canvas.create_text(app.height/2, app.height/2+int(app.text*2), 
+            text = "Player Wins!", anchor = "n", 
+            font = f"Helectiva {int(app.text*2)}", fill = color)
+        else:
+            canvas.create_text(app.height/2, app.height/2+int(app.text*2), 
+            text = "AI Wins!", anchor = "n", 
+            font = f"Helectiva {int(app.text*2)}", fill = color)
+
+def drawStats(app, canvas):
+    if app.currentPiece == app.player:
+        piece = 'Player'
+    else:
+        piece = 'AI'
+    playerMoney = str(app.player['Money'])
+    aiMoney = str(app.ai['Money'])
+    canvas.create_text(app.margin*4+app.height, app.margin, 
+    font = f"Helectiva {int(app.text*2)}", anchor = 'nw',
+    text = f'Player: ${playerMoney}')
+    canvas.create_text(app.margin*4+app.height, app.margin+int(app.text*4), 
+    font = f"Helectiva {int(app.text*2)}", anchor = 'nw',
+    text = f'AI: ${aiMoney}')
+    if app.chance != None:
+        canvas.create_text(app.margin*4+app.height, app.margin+int(app.text*8), 
+        font = f"Helectiva {int(app.text*2)}",
+        anchor = 'nw', text = f'Chance for {piece}: {app.chance}')
+
 def redrawAll(app, canvas):
     drawBoard(app, canvas)
     drawPieces(app, canvas)
+    drawStats(app, canvas)
+    drawGameOver(app, canvas)
 
 def runMonopoly():
     runApp(width=1255, height=725)
