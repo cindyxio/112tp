@@ -57,6 +57,9 @@ def appStarted(app):
     app.card = None #holds the currently displayed card
     app.buy = False #is True if a buy is currently taking place
     app.trade = False #is True if a trade is currently taking place
+    app.offer = 0 #the offering price for a trade
+    app.offerPending = False
+    app.trading = [] #the two properties being traded
     app.sell = False #is True if a sell is currently taking place
     app.build = False #is True if building is currently taking place
     app.cont = False #is True if player decides to buy/trade/sell a property
@@ -93,7 +96,6 @@ def finishTurnInstructions(app):
         app.instructions = "Press 'Space' to Finish Turn"
     else:
         app.instructions = "Press 'Space' to Roll"
-    pass
 
 def getPixelsFromPosition(app, side, i):
     if side == 'right':
@@ -199,15 +201,12 @@ def getSquareFromPosition(app):
 
 def landOnProperty(app, prop): #what happens when you land on property
     if prop in app.currentPiece.getProperties():
-        app.sell = True
-        app.instructions = "Press 'Y' to Sell and 'N' to Pass"
+        pass
     else:
         if app.currentPiece == app.player:
             if prop in app.ai.getProperties():
                 app.currentPiece.subtractMoney(prop.getRent())
                 app.comment = app.comment+f'\nPaid ${prop.getRent()} in rent!'
-                app.trade = True
-                app.instructions = "Press 'Y' to Trade and 'N' to Pass"
             else:
                 app.buy = True
                 app.instructions = "Press 'Y' to Buy and 'N' to Pass"
@@ -215,12 +214,9 @@ def landOnProperty(app, prop): #what happens when you land on property
             if prop in app.player.getProperties():
                 app.currentPiece.subtractMoney(prop.getRent())
                 app.comment = app.comment+f'\nPaid ${prop.getRent()} in rent!'
-                app.trade = True
-                app.instructions = "Press 'Y' to Trade and 'N' to Pass"
             else:
                 app.buy = True
                 app.instructions = "Press 'Y' to Buy and 'N' to Pass"
-    pass
 
 def buyProperty(app, prop):
     if app.cont:
@@ -232,25 +228,46 @@ def buyProperty(app, prop):
     if app.buy == False:
         finishTurnInstructions(app)
 
-def sellProperty(app, prop):
-    if app.cont:
-        app.currentPiece.removeProperty(prop)
-        app.currentPiece.addMoney(prop.getCost())
-        checkMonopoly(app, app.currentPiece)
-        app.sell = False
-        app.cont = False
-    if app.sell == False:
-        finishTurnInstructions(app)
+def tradeOffer(app): #called for opponent player to view trade offer
+    app.offerPending = True
+    ownProp = None
+    oppProp = None
+    if app.trading[0] in app.currentPiece.getProperties():
+        ownProp = app.trading[0]
+        oppProp = app.trading[1]
+    else:
+        ownProp = app.trading[1]
+        oppProp = app.trading[0]
+    app.instructions = "Press 'Y' to Accept and 'N' to Decline Offer"
+    app.comment = f"Offer of ${app.offer} and {oppProp.getName()} for {ownProp.getName()}."
 
-def tradeProperty(app, prop):
+def tradeProperty(app): #called to trade properties
+    ownProp = None
+    oppProp = None
+    if app.trading[0] in app.currentPiece.getProperties():
+        ownProp = app.trading[0]
+        oppProp = app.trading[1]
+    else:
+        ownProp = app.trading[1]
+        oppProp = app.trading[0]
     if app.cont:
-        #trade
-        checkMonopoly(app, app.ai)
-        checkMonopoly(app, app.player)
-        app.trade = False
+        app.offerPending = False
         app.cont = False
-    if app.trade == False:
+        app.currentPiece.addMoney(app.offer)
+        app.currentPiece.addProperty(oppProp)
+        app.currentPiece.removeProperty(ownProp)
+        if app.currentPiece == app.ai:
+            app.currentPiece = app.player
+        else:
+            app.currentPiece = app.ai
+        app.currentPiece.subtractMoney(app.offer)
+        app.currentPiece.addProperty(ownProp)
+        app.currentPiece.removeProperty(oppProp)
+    if app.offerPending == False:
+        app.trade = False
+        app.trading = []
         finishTurnInstructions(app)
+        
 
 def chanceCard(app): #what happens when you land on chance
     cards = ['Go to Jail', 'Materialize $50', 'Teleport to Go', 
@@ -284,7 +301,6 @@ def chanceCard(app): #what happens when you land on chance
             money = int(splitCard[0][1:])
             app.currentPiece.subtractMoney(money)
         finishTurnInstructions(app)
-    pass
 
 def checkMonopoly(app, piece):
     #checks after each play if there is all of one color in one player's 
@@ -300,7 +316,6 @@ def checkMonopoly(app, piece):
             else:
                 if colorDict[color] == 3:
                     piece.monopolize(color)
-    pass
 
 def checkJail(app):
     if app.currentPiece.getJailTurns() == 0:
@@ -309,7 +324,7 @@ def checkJail(app):
     else:
         app.currentPiece.inJail()
         if app.currentPiece.getJailTurns() == 0:
-            app.comment = 'Paid $50 and left Jail!'
+            app.comment = 'Paid $50 to leave Jail!'
             app.currentPiece.subtractMoney(50)
         else:
             app.comment = 'Still in Jail!'
@@ -318,6 +333,9 @@ def checkJail(app):
 def keyPressed(app, event):
     #game will be played mostly in keyPressed
     #press i for instructions to the game
+    #press t to trade
+    #press b to build
+    #press s to sell
     if app.gameOver or app.moving: return
     if app.buy:
         if event.key == "Y" or event.key == "y":
@@ -325,19 +343,37 @@ def keyPressed(app, event):
         if event.key == "N" or event.key == "n":
             app.buy = False
         buyProperty(app, app.currentProperty)
-    elif app.sell:
+    elif ((event.key == "S" or event.key == "s") and 
+    app.currentPiece.getProperties() != None and app.sell == False):
+        app.sell = True
+        app.instructions = "Click a Property to Sell"
+    elif ((event.key == "T" or event.key == "t") and 
+    app.ai.getProperties() != [] and app.player.getProperties() != [] 
+    and app.trade == False):
+        app.trade = True
+        app.instructions = "Click Properties to Trade"
+    elif app.trade and app.cont:
+        if event.key == "Enter":
+            if app.currentPiece == app.ai:
+                app.currentPiece = app.player
+            else:
+                app.currentPiece = app.ai
+            app.cont = False
+            tradeOffer(app)
+        elif event.key == "Up" or event.key == "Right":
+            app.offer += 10
+            app.comment = f"How much will you offer in addition? ${app.offer}"
+        elif (event.key == "Down" or event.key == "Left") and app.offer > 0:
+            app.offer -= 10
+            app.comment = f"How much will you offer in addition? ${app.offer}"
+    elif app.offerPending:
         if event.key == "Y" or event.key == "y":
             app.cont = True
+            app.comment = "Trade completed!"
         if event.key == "N" or event.key == "n":
-            app.sell = False
-        sellProperty(app, app.currentProperty)
-    elif app.trade:
-        if event.key == "Y" or event.key == "y":
-            app.cont = True
-        if event.key == "N" or event.key == "n":
-            app.trade = False
-        tradeProperty(app, app.currentProperty)
-        #list properties and use up and down keys
+            app.offerPending = False
+            app.comment = "Trade declined..."
+        tradeProperty(app)
     elif ((event.key == 'b' or event.key == 'B') and 
     app.currentPiece.getMonopoly() != [] and app.build == False):
         app.build = True
@@ -352,7 +388,6 @@ def keyPressed(app, event):
             app.currentPiece = app.ai
             checkJail(app)
             app.turn = True
-    pass
 
 def getPropertyFromPixels(app, x, y):
     side = None
@@ -388,23 +423,55 @@ def getPropertyFromPixels(app, x, y):
                 return side[index]
     return None
 
+def checkTradingIsLegal(app):
+    if app.trading[0] in app.player.getProperties():
+        if app.trading[1] in app.ai.getProperties():
+            return True
+    if app.trading[1] in app.player.getProperties():
+        if app.trading[0] in app.ai.getProperties():
+            return True
+    else:
+        app.trading = []
+        return False
+
 def mousePressed(app, event):
     #click on properties to view their card (and stats)
-    if app.gameOver or app.moving: return
+    if app.gameOver or app.moving: return None
     temp = getPropertyFromPixels(app, event.x, event.y)
     if isinstance(temp, str):
         app.card = None
-    elif app.build: #click a property to build
+        return None
+    if app.build: #click a property to build
         if temp.getColor() in app.currentPiece.getMonopoly():
             temp.build()
             app.currentPiece.subtractMoney(temp.houseCost)
             app.build = False
             finishTurnInstructions(app)
-    elif app.card == temp:
+    if app.sell: #click a property to sell
+        if temp in app.currentPiece.getProperties():
+            app.currentPiece.removeProperty(temp)
+            app.currentPiece.addMoney(temp.getCost())
+            checkMonopoly(app, app.currentPiece)
+            app.sell = False
+            finishTurnInstructions(app)
+    if app.trade:
+        if temp in app.ai.getProperties() or temp in app.player.getProperties():
+            app.trading.append(temp)
+            if len(app.trading) == 1:
+                app.comment = f"Trading... {app.trading[0].getName()}"
+            if len(app.trading) == 2:
+                check = checkTradingIsLegal(app)
+                if check:
+                    app.cont = True
+                else:
+                    app.instructions = "Try Again"
+            if app.cont:
+                app.instructions = "Change Offer With Arrows; Press 'Enter' when Done"
+                app.comment = f"How much will you offer in addition? ${app.offer}"
+    if app.card == temp:
         app.card = None
     else:
         app.card = temp
-    pass
 
 def timerFired(app):
     #ends game after 20 minutes if no one has gone bankrupt yet
@@ -429,7 +496,6 @@ def timerFired(app):
             else:
                 app.moving = False
                 getSquareFromPosition(app)
-    pass
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
@@ -564,7 +630,7 @@ def drawInstructions(app, canvas):
     app.margin*2+int(app.text*12),
     app.width-app.margin*4, app.margin*2+int(app.text*16), width = 2)
     canvas.create_text((app.width-app.height)/2+app.height, 
-    app.margin*2+int(app.text*14), font = f"Helectiva {int(app.text*1.5)}",
+    app.margin*2+int(app.text*14), font = f"Helectiva {int(app.text*1.25)}",
     anchor = 'c', text = app.instructions)
 
 def drawComment(app, canvas):
@@ -582,7 +648,7 @@ def drawComment(app, canvas):
     if app.moving == True:
         canvas.create_text((app.width-app.height)/2+app.height, 
         app.margin*2+int(app.text*22), 
-        font = f"Helectiva {int(app.text*1.5)}",
+        font = f"Helectiva {int(app.text*1.25)}",
         anchor = 'c', text = f'{piece} rolled a {app.d1} and {app.d2}!')
     elif app.comment != None:
         if app.gameOver:
@@ -591,8 +657,28 @@ def drawComment(app, canvas):
             color = 'black'
         canvas.create_text((app.width-app.height)/2+app.height, 
         app.margin*2+int(app.text*22), 
-        font = f"Helectiva {int(app.text*1.5)}",
+        font = f"Helectiva {int(app.text*1.25)}",
         anchor = 'c', text = app.comment, fill = color)
+
+def drawGameNotes(app, canvas):
+    canvas.create_rectangle(app.margin*4+app.height, app.height/2, 
+    app.width-app.margin*4, app.height-app.margin, width = 2,
+    fill = 'white smoke')
+    canvas.create_rectangle(app.margin*4+app.height, app.height/2, 
+    app.width-app.margin*4, app.height/2+3*app.margin, width = 2, 
+    fill = 'black')
+    canvas.create_text((app.height+app.width)/2,
+    app.height/2+1.5*app.margin, text = "Game Notes", 
+    font = f"Helectiva {int(app.text*2)} bold", fill = 'white')
+    canvas.create_text((app.height+app.width)/2,
+    app.height/2+4*app.margin, anchor = 'n',
+    text = f'''The game ends in 20 minutes, \nor when a player goes bankrupt.
+    \nClick on a property to view \nits information.
+    \nBefore you finish your turn, you can:
+    \n  - Press 's' to sell a property \n   if you own properties.
+    \n  - Press 't' to trade a property \n  if both players own properties.
+    \n  - Press 'b' to build on a property \n   (if you have a color monopoly).''', 
+    font = f'Courier {int(app.text)}')
 
 def drawCardDisplay(app, canvas):
     if app.gameOver == False:
@@ -629,6 +715,7 @@ def redrawAll(app, canvas):
     drawMoney(app, canvas)
     drawInstructions(app, canvas)
     drawComment(app, canvas)
+    drawGameNotes(app, canvas)
     drawCardDisplay(app, canvas)
 
 def runMonopoly():
