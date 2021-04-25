@@ -1,20 +1,11 @@
 #Cindy Xiong (cindyxio)
-#CMU 15-112 Term Project (Fantasy Monopoly against AI)
+#CMU 15-112 Term Project (Fantasy Monopoly)
+#2 player version (tp1)
 
 from cmu_112_graphics_monopoly import *
 import tkinter as tk
 import random, math, time
 from monopoly_classes import *
-
-'''
-AI Key Points:
-- A point system: 
-- will trade a property owned below a certain cutoff
-- will offer trade for opponent's property above cutoff
-- Points of player's prop increase when player is closer to monopoly in color
-- will buy above a certain cutoff (points increase closer to monopoly)
-- points decrease when AI is losing money
-'''
 
 def appStarted(app):
     app.margin = 20
@@ -113,41 +104,31 @@ def getPixelsFromPosition(app, side, i):
             x1 = app.margin
     return x1, y1, x2, y2
 
-def getSquareFromPixels(app, x, y): #identifies the square
-    side = None
-    index = None
-    if (app.height-app.margin-app.cellHeight) < y < (app.height-app.margin):
-        side = app.boardBottom
-        for i in range(len(app.boardBottom)):
-            if ((app.height-app.margin-app.cellHeight-app.cellWidth*(i+1)) < x
-            < (app.height-app.margin-app.cellHeight-app.cellWidth*(i))):
-                index = i
-                return side[index]
-    if app.margin < y < app.margin+app.cellHeight:
-        side = app.boardTop
-        for i in range(len(app.boardTop)):
-            if (app.margin+app.cellHeight+app.cellWidth*(i) < x 
-            < app.margin+app.cellHeight+app.cellWidth*(i+1)):
-                index = i
-                return side[index]
-    if app.margin < x < app.margin+app.cellHeight:
-        side = app.boardLeft
-        for i in range(len(app.boardLeft)):
-            if (app.height-app.margin-app.cellHeight-app.cellWidth*(i+1) < y 
-            < app.height-app.margin-app.cellHeight-app.cellWidth*(i)):
-                index = i
-                return side[index]
-    if (app.margin+app.cellHeight+(app.cellWidth*6) < x 
-    < app.margin+(app.cellHeight*2)+(app.cellWidth*6)):
-        side = app.boardRight
-        for i in range(len(app.boardRight)):
-            if (app.margin+app.cellHeight+app.cellWidth*i < y <
-            app.margin+app.cellHeight+app.cellWidth*(i+1)):
-                index = i
-                return side[index]
-    return None
+def roll(app): #rolls two random die and sets up movement of piece
+    app.d1 = random.randint(1, 6)
+    app.d2 = random.randint(1, 6)
+    app.moves = app.d1+app.d2
+    app.moving = True
+    app.time = time.time()
 
-def getSquareFromPosition(app): #identifies the square and calls appropriate results
+def movePiece(app): #moves piece forward by one step
+    side = app.currentPiece.getSide()
+    sideIndex = app.order.index(side)
+    index = app.currentPiece.getIndex()
+    if index < 6:
+        index += 1
+    else:
+        if sideIndex < 3:
+            sideIndex += 1
+        else:
+            sideIndex = 0
+        side = app.order[sideIndex]
+        index = 0
+    if side == 'right' and index == 6: #+$200 every time Go is passed
+        app.currentPiece.addMoney(200)
+    app.currentPiece.changePosition((side, index))
+
+def getSquareFromPosition(app):
     side = app.currentPiece.getSide()
     i = app.currentPiece.getIndex()
     if side == 'right':
@@ -193,30 +174,6 @@ def getSquareFromPosition(app): #identifies the square and calls appropriate res
         app.card = square
         app.comment = f'Landed on {app.currentProperty.getName()}!'
         landOnProperty(app, app.currentProperty)
-
-def roll(app): #rolls two random die and sets up movement of piece
-    app.d1 = random.randint(1, 6)
-    app.d2 = random.randint(1, 6)
-    app.moves = app.d1+app.d2
-    app.moving = True
-    app.time = time.time()
-
-def movePiece(app): #moves piece forward by one step
-    side = app.currentPiece.getSide()
-    sideIndex = app.order.index(side)
-    index = app.currentPiece.getIndex()
-    if index < 6:
-        index += 1
-    else:
-        if sideIndex < 3:
-            sideIndex += 1
-        else:
-            sideIndex = 0
-        side = app.order[sideIndex]
-        index = 0
-    if side == 'right' and index == 6: #+$200 every time Go is passed
-        app.currentPiece.addMoney(200)
-    app.currentPiece.changePosition((side, index))
 
 def landOnProperty(app, prop): #what happens when you land on property
     if prop in app.currentPiece.getProperties():
@@ -290,6 +247,7 @@ def tradeProperty(app): #called to trade properties
         app.trade = False
         app.trading = []
         finishTurnInstructions(app)
+        
 
 def chanceCard(app): #what happens when you land on chance
     cards = ['Go to Jail', 'Materialize $50', 'Teleport to Go', 
@@ -323,17 +281,6 @@ def chanceCard(app): #what happens when you land on chance
             money = int(splitCard[0][1:])
             app.currentPiece.subtractMoney(money)
         finishTurnInstructions(app)
-
-def checkTradingIsLegal(app):
-    if app.trading[0] in app.player.getProperties():
-        if app.trading[1] in app.ai.getProperties():
-            return True
-    if app.trading[1] in app.player.getProperties():
-        if app.trading[0] in app.ai.getProperties():
-            return True
-    else:
-        app.trading = []
-        return False
 
 def checkMonopoly(app, piece):
     #checks after each play if there is all of one color in one player's 
@@ -372,6 +319,7 @@ def checkJail(app):
 
 def keyPressed(app, event):
     #game will be played mostly in keyPressed
+    #press i for instructions to the game
     #press t to trade
     #press b to build
     #press s to sell
@@ -428,6 +376,51 @@ def keyPressed(app, event):
             checkJail(app)
             app.turn = True
 
+def getSquareFromPixels(app, x, y):
+    side = None
+    index = None
+    if (app.height-app.margin-app.cellHeight) < y < (app.height-app.margin):
+        side = app.boardBottom
+        for i in range(len(app.boardBottom)):
+            if ((app.height-app.margin-app.cellHeight-app.cellWidth*(i+1)) < x
+            < (app.height-app.margin-app.cellHeight-app.cellWidth*(i))):
+                index = i
+                return side[index]
+    if app.margin < y < app.margin+app.cellHeight:
+        side = app.boardTop
+        for i in range(len(app.boardTop)):
+            if (app.margin+app.cellHeight+app.cellWidth*(i) < x 
+            < app.margin+app.cellHeight+app.cellWidth*(i+1)):
+                index = i
+                return side[index]
+    if app.margin < x < app.margin+app.cellHeight:
+        side = app.boardLeft
+        for i in range(len(app.boardLeft)):
+            if (app.height-app.margin-app.cellHeight-app.cellWidth*(i+1) < y 
+            < app.height-app.margin-app.cellHeight-app.cellWidth*(i)):
+                index = i
+                return side[index]
+    if (app.margin+app.cellHeight+(app.cellWidth*6) < x 
+    < app.margin+(app.cellHeight*2)+(app.cellWidth*6)):
+        side = app.boardRight
+        for i in range(len(app.boardRight)):
+            if (app.margin+app.cellHeight+app.cellWidth*i < y <
+            app.margin+app.cellHeight+app.cellWidth*(i+1)):
+                index = i
+                return side[index]
+    return None
+
+def checkTradingIsLegal(app):
+    if app.trading[0] in app.player.getProperties():
+        if app.trading[1] in app.ai.getProperties():
+            return True
+    if app.trading[1] in app.player.getProperties():
+        if app.trading[0] in app.ai.getProperties():
+            return True
+    else:
+        app.trading = []
+        return False
+
 def mousePressed(app, event):
     #click on properties to view their card (and stats)
     if app.gameOver or app.moving: return None
@@ -451,7 +444,7 @@ def mousePressed(app, event):
             checkMonopoly(app, app.currentPiece)
             app.sell = False
             finishTurnInstructions(app)
-    if app.trade: #click two properties to sell
+    if app.trade:
         if temp in app.ai.getProperties() or temp in app.player.getProperties():
             app.trading.append(temp)
             if len(app.trading) == 1:
@@ -462,7 +455,7 @@ def mousePressed(app, event):
                     app.cont = True
                 else:
                     app.instructions = "Try Again"
-            if app.cont: #goes to keyPressed
+            if app.cont:
                 app.instructions = "Change Offer With Arrows; Press 'Enter' when Done"
                 app.comment = f"How much will you offer in addition? ${app.offer}"
     if app.card == temp:
@@ -484,7 +477,6 @@ def timerFired(app):
         else:
             app.comment = f'{app.winner.getName()} Wins!'
         app.gameOver = True
-    #moves the piece the rolled amount of times on the board
     elif app.moving:
         if time.time()-app.time > 0.25:
             app.time = time.time()
@@ -494,8 +486,6 @@ def timerFired(app):
             else:
                 app.moving = False
                 getSquareFromPosition(app)
-
-#draw functions start below:
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
