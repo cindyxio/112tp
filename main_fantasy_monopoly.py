@@ -1,11 +1,20 @@
 #Cindy Xiong (cindyxio)
-#CMU 15-112 Term Project (Fantasy Monopoly)
-#2 player version (tp1)
+#CMU 15-112 Term Project (Fantasy Monopoly against AI)
 
 from cmu_112_graphics_monopoly import *
 import tkinter as tk
 import random, math, time
 from monopoly_classes import *
+
+'''
+AI Key Points:
+- A point system: 
+- will trade a property owned below a certain cutoff
+- will offer trade for opponent's property above cutoff
+- Points of player's prop increase when player is closer to monopoly in color
+- will buy above a certain cutoff (points increase closer to monopoly)
+- points decrease when AI is losing money
+'''
 
 def appStarted(app):
     app.margin = 20
