@@ -65,7 +65,10 @@ class Piece(object):
     def addMoney(self, money):
         self.money += money
     def subtractMoney(self, money):
-        self.money -= money
+        if self.money-money >= 0:
+            self.money -= money
+        else:
+            self.money = 0
     def changePosition(self, newPosition):
         self.position = newPosition
     def goToJail(self):
