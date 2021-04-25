@@ -1,5 +1,6 @@
 #Cindy Xiong (cindyxio)
 #CMU 15-112 Term Project (Fantasy Monopoly against AI)
+#Milestone: 2 player version complete
 
 from cmu_112_graphics_monopoly import *
 import tkinter as tk
