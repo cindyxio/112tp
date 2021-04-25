@@ -432,10 +432,7 @@ def mousePressed(app, event):
     #click on properties to view their card (and stats)
     if app.gameOver or app.moving: return None
     temp = getSquareFromPixels(app, event.x, event.y)
-    if isinstance(temp, object) == False:
-        app.card = None
-        return None
-    if isinstance(temp, str):
+    if isinstance(temp, Property) == False:
         app.card = None
         return None
     if app.build: #click a property to build
