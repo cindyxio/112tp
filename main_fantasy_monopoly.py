@@ -219,9 +219,19 @@ def aiDecisionMaker(app):
         app.buy = False
         finishTurnInstructions(app)
 
-def checkPointState(app, prop): 
-    #checks game state for property and adjusts its points
-    pass
+def checkOwnerState(app): 
+    #checks which properties are owned by who and adjusts all points
+    for prop in app.properties:
+        c1 = 0
+        for aiOwn in app.ai.getProperties():
+            if aiOwn.getColor() == prop.getColor():
+                c1 += 1
+        prop.calcAiPoints(c1)
+        c2 = 0
+        for playerOwn in app.player.getProperties():
+            if playerOwn.getColor() == prop.getColor():
+                c2 += 1
+        prop.calcPlayerPoints(c2)
             
 def roll(app): #rolls two random die and sets up movement of piece
     app.d1 = random.randint(1, 6)
@@ -526,10 +536,12 @@ def timerFired(app):
     #checks the AI's money to adjust points
     if app.ai.getMoney() != app.aiMoney:
         diff = app.ai.getMoney()-app.aiMoney
-        pts = diff//10
+        pts = diff//10 #1 AI point = $10 of AI money
         for prop in app.properties:
             prop.addPoints(pts)
         app.aiMoney = app.ai.getMoney()
+    #calls function to check owner of each property and adjust points
+    checkOwnerState(app)
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
