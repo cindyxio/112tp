@@ -25,10 +25,10 @@ def appStarted(app):
     app.fauna = Property('Fauna Court', 150, 17, '+100*(self.level+1)', 
     'green')
     app.cecile = Property('Cecile Circle', 70, 5, '+50', 'green')
-    app.dream = Property("Dream Loop", 314, 13, '*1.3', 'green')
+    app.dream = Property("Dream Loop", 314, 13, '*2.5', 'green')
     app.dragon = Property('Dragon Trail', 400, 25, '*2', 'purple')
     app.fae = Property('Fae Avenue', 100, 11, '*1.5', 'purple')
-    app.elven = Property('Elven Place', 500, 50, '*2.1', 'purple')
+    app.elven = Property('Elven Place', 500, 50, '*1.9', 'purple')
     app.seer = Property('Seer Terrace', 220, 35, '+20*(self.level+3)', 'red')
     app.oracle = Property('Oracle Way', 150, 15, '*1.5', 'red')
     app.mermaid = Property('Mermaid Beach', 50, 10, '+15', 'blue')
@@ -49,9 +49,15 @@ def appStarted(app):
     app.boardRight = ['Magic Tax', 'Chance', app.fae, 'Chance', app.elven, 
     app.dragon] #up to down: purple
     app.order = ['bottom', 'left', 'top', 'right'] #order of boardSides 
-    
+    app.properties = [app.dream, app.fauna, app.cecile, app.sunset, app.deity,
+    app.mythical, app.witch, app.oracle, app.seer, app.coral, app.mermaid, 
+    app.fae, app.elven, app.dragon]
+    for prop in app.properties:
+        prop.initialPoints()
+
     app.gameOver = False
     app.turn = True #is True when it's the player's turn
+    app.inTurn = True #is True when the player's turn is in progress
     app.instructions = "Press 'Space' to Roll" #holds the instructions
     app.comment = "Welcome to Fantasy Monopoly!" #holds the current comment
     app.card = None #holds the currently displayed card
@@ -170,7 +176,7 @@ def getSquareFromPosition(app): #identifies the square and calls appropriate res
             square = 'JAIL'
         else:
             square = app.boardBottom[i]
-    if isinstance(square, str):
+    if isinstance(square, Property) == False:
         app.currentProperty = None
         if square == 'Chance':
             chanceCard(app)
@@ -194,6 +200,29 @@ def getSquareFromPosition(app): #identifies the square and calls appropriate res
         app.comment = f'Landed on {app.currentProperty.getName()}!'
         landOnProperty(app, app.currentProperty)
 
+def aiBuy(app):
+    if app.currentProperty.getPoints() > 25:
+        if (len(app.ai.getProperties()) < 2 or 
+        app.currentProperty.getPoints() > 60):
+            app.ai.addProperty(app.currentProperty)
+            app.ai.subtractMoney(app.currentProperty.getCost())
+            app.comment = f'AI bought {app.currentProperty.getName()}!'
+            return True
+    app.comment = f'AI passed on {app.currentProperty.getName()}!'
+    return False
+
+def aiDecisionMaker(app):
+    if app.buy:
+        buy = aiBuy(app)
+        if buy:
+            checkMonopoly(app, app.currentPiece)
+        app.buy = False
+        finishTurnInstructions(app)
+
+def checkPointState(app, prop): 
+    #checks game state for property and adjusts its points
+    pass
+            
 def roll(app): #rolls two random die and sets up movement of piece
     app.d1 = random.randint(1, 6)
     app.d2 = random.randint(1, 6)
@@ -235,7 +264,7 @@ def landOnProperty(app, prop): #what happens when you land on property
                 app.comment = app.comment+f'\nPaid ${prop.getRent()} in rent!'
             else:
                 app.buy = True
-                app.instructions = "Press 'Y' to Buy and 'N' to Pass"
+                aiDecisionMaker(app)
 
 def buyProperty(app, prop):
     if app.cont:
@@ -376,6 +405,7 @@ def keyPressed(app, event):
     #press b to build
     #press s to sell
     if app.gameOver or app.moving: return
+    if app.inTurn == False: return
     if app.buy:
         if event.key == "Y" or event.key == "y":
             app.cont = True
@@ -424,9 +454,11 @@ def keyPressed(app, event):
             checkJail(app)
             app.turn = False
         else:
+            app.inTurn = False
             app.currentPiece = app.ai
             checkJail(app)
             app.turn = True
+            app.inTurn = True
 
 def mousePressed(app, event):
     #click on properties to view their card (and stats)
@@ -436,7 +468,8 @@ def mousePressed(app, event):
         app.card = None
         return None
     if app.build: #click a property to build
-        if temp.getColor() in app.currentPiece.getMonopoly():
+        if (temp.getColor() in app.currentPiece.getMonopoly() and 
+        temp.getLevel() != 'Hotel'):
             temp.build()
             app.currentPiece.subtractMoney(temp.houseCost)
             app.build = False
@@ -444,7 +477,7 @@ def mousePressed(app, event):
     if app.sell: #click a property to sell
         if temp in app.currentPiece.getProperties():
             app.currentPiece.removeProperty(temp)
-            app.currentPiece.addMoney(temp.getCost())
+            app.currentPiece.addMoney(temp.getCost()//2)
             checkMonopoly(app, app.currentPiece)
             app.sell = False
             finishTurnInstructions(app)
@@ -491,8 +524,6 @@ def timerFired(app):
             else:
                 app.moving = False
                 getSquareFromPosition(app)
-
-#draw functions start below:
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
@@ -672,8 +703,8 @@ def drawGameNotes(app, canvas):
     text = f'''The game ends in 20 minutes, \nor when a player goes bankrupt.
     \nClick on a property to view \nits information.
     \nBefore you finish your turn, you can:
-    \n  - Press 's' to sell a property \n   if you own properties.
-    \n  - Press 't' to trade a property \n  if both players own properties.
+    \n  - Press 's' to sell a property \n   (at half-price of original)\n   if you own properties.
+    \n  - Press 't' to trade a property \n   if both players own properties.
     \n  - Press 'b' to build on a property \n   (if you have a color monopoly).''', 
     font = f'Courier {int(app.text)}')
 
@@ -703,7 +734,8 @@ def drawCardDisplay(app, canvas):
             \nWith a Hotel: ${str(app.card.levelRent(4))}
             \n\nCost of Property: ${str(app.card.cost)}
             \nCost of Building: ${str(app.card.houseCost)}
-            \nCurrent Level: {app.card.getLevel()}''', 
+            \nCurrent Level: {app.card.getLevel()} 
+            \nCurrent AI Points: {app.card.getPoints()}''', #will delete this later
             font = f'Courier {int(8*app.text/7)}')
 
 def redrawAll(app, canvas):
