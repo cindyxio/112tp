@@ -56,8 +56,7 @@ def appStarted(app):
         prop.initialPoints()
 
     app.gameOver = False
-    app.turn = True #is True when it's the player's turn
-    app.inTurn = True #is True when the player's turn is in progress
+    app.turn = False #is True when it's the player's turn
     app.instructions = "Press 'Space' to Roll" #holds the instructions
     app.comment = "Welcome to Fantasy Monopoly!" #holds the current comment
     app.card = None #holds the currently displayed card
@@ -78,6 +77,7 @@ def appStarted(app):
     app.time = time.time()
     app.player = Piece('Player')
     app.ai = Piece('AI')
+    app.aiMoney = app.ai.getMoney()
     app.currentPiece = app.player
     app.currentProperty = None
     app.winner = None
@@ -201,7 +201,7 @@ def getSquareFromPosition(app): #identifies the square and calls appropriate res
         landOnProperty(app, app.currentProperty)
 
 def aiBuy(app):
-    if app.currentProperty.getPoints() > 25:
+    if app.currentProperty.getPoints() > 30:
         if (len(app.ai.getProperties()) < 2 or 
         app.currentProperty.getPoints() > 60):
             app.ai.addProperty(app.currentProperty)
@@ -405,23 +405,23 @@ def keyPressed(app, event):
     #press b to build
     #press s to sell
     if app.gameOver or app.moving: return
-    if app.inTurn == False: return
-    if app.buy:
+    if app.buy and app.turn:
         if event.key == "Y" or event.key == "y":
             app.cont = True
         if event.key == "N" or event.key == "n":
             app.buy = False
         buyProperty(app, app.currentProperty)
     elif ((event.key == "S" or event.key == "s") and 
-    app.currentPiece.getProperties() != None and app.sell == False):
+    app.currentPiece.getProperties() != None and app.sell == False 
+    and app.turn):
         app.sell = True
         app.instructions = "Click a Property to Sell"
     elif ((event.key == "T" or event.key == "t") and 
     app.ai.getProperties() != [] and app.player.getProperties() != [] 
-    and app.trade == False):
+    and app.trade == False and app.turn):
         app.trade = True
         app.instructions = "Click Properties to Trade"
-    elif app.trade and app.cont:
+    elif app.trade and app.cont and app.turn:
         if event.key == "Enter":
             if app.currentPiece == app.ai:
                 app.currentPiece = app.player
@@ -435,7 +435,7 @@ def keyPressed(app, event):
         elif (event.key == "Down" or event.key == "Left") and app.offer > 0:
             app.offer -= 10
             app.comment = f"How much will you offer in addition? ${app.offer}"
-    elif app.offerPending:
+    elif app.offerPending and app.turn:
         if event.key == "Y" or event.key == "y":
             app.cont = True
             app.comment = "Trade completed!"
@@ -444,21 +444,20 @@ def keyPressed(app, event):
             app.comment = "Trade declined..."
         tradeProperty(app)
     elif ((event.key == 'b' or event.key == 'B') and 
-    app.currentPiece.getMonopoly() != [] and app.build == False):
+    app.currentPiece.getMonopoly() != [] and app.build == False 
+    and app.turn):
         app.build = True
         app.instructions = 'Click a Property to Build'
     elif event.key == 'Space':
         app.card = None
-        if app.turn:
+        if app.turn == False:
+            app.turn = True
             app.currentPiece = app.player
             checkJail(app)
-            app.turn = False
         else:
-            app.inTurn = False
+            app.turn = False
             app.currentPiece = app.ai
             checkJail(app)
-            app.turn = True
-            app.inTurn = True
 
 def mousePressed(app, event):
     #click on properties to view their card (and stats)
@@ -524,6 +523,13 @@ def timerFired(app):
             else:
                 app.moving = False
                 getSquareFromPosition(app)
+    #checks the AI's money to adjust points
+    if app.ai.getMoney() != app.aiMoney:
+        diff = app.ai.getMoney()-app.aiMoney
+        pts = diff//10
+        for prop in app.properties:
+            prop.addPoints(pts)
+        app.aiMoney = app.ai.getMoney()
 
 def rgbString(r, g, b):
     #from: https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors

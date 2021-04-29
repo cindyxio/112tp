@@ -45,7 +45,7 @@ class Property(object):
         block = 2
         if self.color == 'green' or self.color == 'purple':
             block = 3
-        weighted = int((initRent*2) + (hotelRent*0.15) + (50/block) - 
+        weighted = int((initRent*2.5) + (hotelRent*0.15) + (100/block) - 
         (ogCost/4))
         if self.name == 'Fauna Court' or self.name == 'Witch Street':
             #note: this is due to Chance being able to teleport to them
