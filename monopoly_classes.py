@@ -11,6 +11,8 @@ class Property(object):
         # time a house is built
         self.color = color
         self.level = 0
+        self.aiPoints = 0
+        self.playerPoints = 0
     def getName(self):
         return self.name
     def getCost(self):
@@ -52,8 +54,26 @@ class Property(object):
             weighted += 10
         self.points = weighted
         return self.points
+    def calcAiPoints(self, count): #takes how many properties of same color owned
+        if count == 3:
+            self.aiPoints = 50
+        elif count == 2:
+            self.aiPoints = 25
+        elif count == 1:
+            self.aiPoints = 15
+        else:
+            self.aiPoints = 0
+    def calcPlayerPoints(self, count):
+        if count == 3:
+            self.playerPoints = 10
+        elif count == 2:
+            self.playerPoints = 30
+        elif count == 1:
+            self.playerPoints = 20
+        else:
+            self.playerPoints = 0
     def getPoints(self):
-        return self.points
+        return self.points + self.aiPoints + self.playerPoints
     def subtractPoints(self, pts):
         self.points -= pts
     def addPoints(self, pts):
