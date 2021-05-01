@@ -3,7 +3,8 @@ class Property(object):
     def __init__(self, name, cost, rent, priceChange, color):
         self.name = name
         self.rent = rent
-        self.original = rent
+        self.originalRent = rent
+        self.originalCost = cost
         self.cost = cost #cost of buying the property (changes when a house is built)
         self.houseCost = cost//4 #cost of building a house
         self.priceChange = priceChange #priceChange comes in the form of a 
@@ -11,16 +12,20 @@ class Property(object):
         # time a house is built
         self.color = color
         self.level = 0
-        self.aiPoints = 0
-        self.playerPoints = 0
+        self.propertyPoints = 0 #points calculated based off of property status
+        self.aiPoints = 0 #points calculated based off of properties AI owns
+        self.playerPoints = 0 #points calc based off properties player owns
+        self.changingPoints = 0 #points that change due to other factors in game
+        self.points = (self.propertyPoints + self.aiPoints + self.playerPoints 
+        + self.changingPoints)
     def getName(self):
         return self.name
     def getCost(self):
         return self.cost
     def getColor(self):
         return self.color
-    def getOriginal(self):
-        return self.original
+    def getOriginalRent(self):
+        return self.originalRent
     def getRent(self):
         return self.rent
     def getLevel(self):
@@ -29,7 +34,7 @@ class Property(object):
         elif self.level == 4:
             return 'Hotel'
     def levelRent(self, level): #returns rent price for an integer level
-        new = self.original
+        new = self.originalRent
         for i in range(level):
             new = int(eval(str(new)+self.priceChange))
         return new
@@ -40,44 +45,45 @@ class Property(object):
     def monopoly(self):
         if self.level == 0:
             self.rent = self.rent*2
-    def initialPoints(self):
-        ogCost = self.cost
-        initRent = self.original
+    def calcPropertyPoints(self):
         hotelRent = self.levelRent(4)
         block = 2
         if self.color == 'green' or self.color == 'purple':
             block = 3
-        weighted = int((initRent*2.5) + (hotelRent*0.15) + (100/block) - 
-        (ogCost/4))
+        weighted = int((self.rent*2) + (hotelRent*0.25) + (100/block) - 
+        (self.originalCost/3))
         if self.name == 'Fauna Court' or self.name == 'Witch Street':
             #note: this is due to Chance being able to teleport to them
+            weighted += 20
+        if self.color == "green" or self.color == "orange":
+            #note: this is due to the advantage of Fauna and Witch
             weighted += 10
-        self.points = weighted
-        return self.points
-    def calcAiPoints(self, count): #takes how many properties of same color owned
-        if count == 3:
-            self.aiPoints = 50
-        elif count == 2:
-            self.aiPoints = 25
+        self.propertyPoints = weighted
+        return self.propertyPoints
+    def calcAiPoints(self, count): 
+        #takes in how many properties of same color owned
+        if count == 2:
+            self.aiPoints = 100
         elif count == 1:
-            self.aiPoints = 15
+            self.aiPoints = 75
         else:
             self.aiPoints = 0
     def calcPlayerPoints(self, count):
-        if count == 3:
-            self.playerPoints = 10
-        elif count == 2:
-            self.playerPoints = 30
-        elif count == 1:
+        #takes in how many properties of same color owned
+        if count == 2:
             self.playerPoints = 20
+        elif count == 1:
+            self.playerPoints = 70
         else:
             self.playerPoints = 0
     def getPoints(self):
-        return self.points + self.aiPoints + self.playerPoints
+        self.points = (self.propertyPoints + self.aiPoints + self.playerPoints 
+        + self.changingPoints)
+        return self.points
     def subtractPoints(self, pts):
-        self.points -= pts
+        self.changingPoints -= pts
     def addPoints(self, pts):
-        self.points += pts
+        self.changingPoints += pts
 
 class Piece(object):
     def __init__(self, name):
