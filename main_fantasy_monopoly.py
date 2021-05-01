@@ -245,10 +245,9 @@ def aiTrade(app):
 def aiSell(app):
     for aiOwn in app.ai.getProperties():
         if aiOwn.getPoints() < -20:
-            app.ai.removeProperty(app.aiOwn)
-            app.ai.addMoney(app.aiOwn.getCost()//2)
+            app.ai.removeProperty(aiOwn)
+            app.ai.addMoney(aiOwn.getCost()//2)
             app.comment = f"AI sold {aiOwn.getName()}!"
-            checkMonopoly(app, app.ai)
             return True
     return False
 
@@ -279,6 +278,7 @@ def aiDecisionMaker(app):
         build = aiBuild(app)
     if app.ai.getProperties() != []:
         sell = aiSell(app)
+        checkMonopoly(app, app.ai)
     if app.player.getProperties() != [] and app.ai.getProperties() != []:
         trade = aiTrade(app)
     if app.trade == False:
@@ -396,6 +396,7 @@ def tradeProperty(app): #called to trade properties
         else:
             app.currentPiece = app.ai
             app.turn = False
+        app.offer = 0
         app.trade = False
         app.trading = []
         finishTurnInstructions(app)
