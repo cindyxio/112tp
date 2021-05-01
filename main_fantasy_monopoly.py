@@ -78,6 +78,124 @@ def finishTurnInstructions(app):
         app.instructions = "Press 'Space' to Finish Turn"
     else:
         app.instructions = "Press 'Space' to Roll"
+def aiBuy(app):
+    if app.currentProperty.getPoints() > 30:
+        if (len(app.ai.getProperties()) < 2 or 
+        app.currentProperty.getPoints() > 70) and (app.currentProperty.getCost() 
+        < app.aiMoney):
+            app.ai.addProperty(app.currentProperty)
+            app.ai.subtractMoney(app.currentProperty.getCost())
+            app.comment = f'AI bought {app.currentProperty.getName()}!'
+            return True
+    app.comment = f'AI passed on {app.currentProperty.getName()}!'
+    return False
+
+def aiTrade(app):
+    if app.trade:
+        if app.trading[0] in app.ai.getProperties():
+            ownProp = app.trading[0]
+            oppProp = app.trading[1]
+        else:
+            ownProp = app.trading[1]
+            oppProp = app.trading[0]
+        if ownProp.getPoints() < (oppProp.getPoints()+app.offer/10):
+            app.cont = True
+            app.comment = "Trade completed!"
+        else:
+            app.comment = "Trade declined..."
+        tradeProperty(app) 
+    else:
+        for playerOwn in app.player.getProperties():
+            if playerOwn.getPoints() > 100:
+                worstPoints = 300
+                worstProp = None
+                for aiOwn in app.ai.getProperties():
+                    if worstPoints > aiOwn.getPoints():
+                        worstPoints = aiOwn.getPoints()
+                        worstProp = aiOwn
+                if worstPoints+50 < playerOwn.getPoints():
+                    app.trading.append(playerOwn)
+                    app.trading.append(worstProp)
+                    app.offer = playerOwn.getPoints()-worstPoints
+                    if app.aiMoney-app.offer <= 100:
+                        app.offer = 0
+                    app.currentPiece = app.player
+                    app.trade = True
+                    app.turn = True
+                    tradeOffer(app)
+                    return True
+        return False
+    pass
+
+def aiSell(app):
+    if app.aiMoney < 250:
+        worstPoints = 300
+        worstProp = None
+        for aiOwn in app.ai.getProperties():
+            if worstPoints > aiOwn.getPoints():
+                worstPoints = aiOwn.getPoints()
+                worstProp = aiOwn
+        app.ai.removeProperty(worstProp)
+        app.ai.addMoney(worstProp.getCost()//2)
+        app.comment = f"AI sold {worstProp.getName()}!"
+        return True
+    for aiOwn in app.ai.getProperties():
+        if aiOwn.getPoints() < -20:
+            app.ai.removeProperty(aiOwn)
+            app.ai.addMoney(aiOwn.getCost()//2)
+            app.comment = f"AI sold {aiOwn.getName()}!"
+            return True
+    return False
+
+def aiBuild(app):
+    color  = random.choice(app.ai.getMonopoly())
+    for aiOwn in app.ai.getProperties():
+        bestPoints = -300
+        bestProp = None
+        if aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints:
+            bestPoints = aiOwn.getPoints()
+            bestProp = aiOwn
+    if (bestProp.getPoints() > 50 and bestProp.getLevel() != 'Hotel' and 
+    bestProp.houseCost < app.aiMoney+50):
+        bestProp.build()
+        app.ai.subtractMoney(bestProp.houseCost)
+        app.comment = f"AI built on {bestProp.getName()}!"
+        return True
+    return False
+
+def aiDecisionMaker(app):
+    if app.currentPiece == app.player: return 
+    if app.buy:
+        buy = aiBuy(app)
+        if buy:
+            checkMonopoly(app, app.currentPiece)
+        app.buy = False
+    #Note: AI can only choose to sell/trade/build once per turn
+    if app.ai.getProperties() != []:
+        sell = aiSell(app)
+        checkMonopoly(app, app.ai)
+    elif app.ai.getMonopoly() != []: 
+        build = aiBuild(app)
+    elif app.player.getProperties() != [] and app.ai.getProperties() != []:
+        trade = aiTrade(app)
+    if app.trade == False:
+        finishTurnInstructions(app)
+
+def checkPropertyState(app): 
+    #checks which properties are owned by who and adjusts all points that 
+    # let AI make its decisions
+    for prop in app.properties:
+        prop.calcPropertyPoints()
+        c1 = 0
+        for aiOwn in app.ai.getProperties():
+            if aiOwn.getColor() == prop.getColor() and aiOwn != prop:
+                c1 += 1
+        prop.calcAiPoints(c1)
+        c2 = 0
+        for playerOwn in app.player.getProperties():
+            if playerOwn.getColor() == prop.getColor() and playerOwn != prop:
+                c2 += 1
+        prop.calcPlayerPoints(c2)
 
 def getPixelsFromPosition(app, side, i):
     if side == 'right':
@@ -194,111 +312,6 @@ def getSquareFromPosition(app): #identifies the square and calls appropriate res
         app.comment = f'Landed on {app.currentProperty.getName()}!'
         landOnProperty(app, app.currentProperty)
 
-def aiBuy(app):
-    if app.currentProperty.getPoints() > 30:
-        if (len(app.ai.getProperties()) < 2 or 
-        app.currentProperty.getPoints() > 60):
-            app.ai.addProperty(app.currentProperty)
-            app.ai.subtractMoney(app.currentProperty.getCost())
-            app.comment = f'AI bought {app.currentProperty.getName()}!'
-            return True
-    app.comment = f'AI passed on {app.currentProperty.getName()}!'
-    return False
-
-def aiTrade(app):
-    if app.trade:
-        if app.trading[0] in app.ai.getProperties():
-            ownProp = app.trading[0]
-            oppProp = app.trading[1]
-        else:
-            ownProp = app.trading[1]
-            oppProp = app.trading[0]
-        if ownProp.getPoints() < (oppProp.getPoints()+app.offer/10):
-            app.cont = True
-            app.comment = "Trade completed!"
-        else:
-            app.comment = "Trade declined..."
-        tradeProperty(app) 
-    else:
-        for playerOwn in app.player.getProperties():
-            if playerOwn.getPoints() > 100:
-                worstPoints = 300
-                worstProp = None
-                for aiOwn in app.ai.getProperties():
-                    if worstPoints > aiOwn.getPoints():
-                        worstPoints = aiOwn.getPoints()
-                        worstProp = aiOwn
-                if worstPoints < playerOwn.getPoints():
-                    app.trading.append(playerOwn)
-                    app.trading.append(worstProp)
-                    app.offer = playerOwn.getPoints()-worstPoints
-                    if app.aiMoney-app.offer <= 100:
-                        app.offer = 0
-                    app.currentPiece = app.player
-                    app.trade = True
-                    app.turn = True
-                    tradeOffer(app)
-                    return True
-        return False
-    pass
-
-def aiSell(app):
-    for aiOwn in app.ai.getProperties():
-        if aiOwn.getPoints() < -20:
-            app.ai.removeProperty(app.aiOwn)
-            app.ai.addMoney(app.aiOwn.getCost()//2)
-            app.comment = f"AI sold {aiOwn.getName()}!"
-            checkMonopoly(app, app.ai)
-            return True
-    return False
-
-def aiBuild(app):
-    color  = random.randchoice(app.ai.getMonopoly())
-    for aiOwn in app.ai.getProperties():
-        bestPoints = -300
-        bestProp = None
-        if aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints:
-            bestPoints = aiOwn.getPoints()
-            bestProp = aiOwn
-    if (bestProp.getPoints() > 50 and bestProp.getLevel() != 'Hotel'):
-        bestProp.build()
-        app.ai.subtractMoney(bestProp.houseCost)
-        app.comment = f"AI built on {bestProp.getName()}!"
-        return True
-    return False
-
-def aiDecisionMaker(app):
-    if app.currentPiece == app.player: return 
-    if app.buy:
-        buy = aiBuy(app)
-        if buy:
-            checkMonopoly(app, app.currentPiece)
-        app.buy = False
-    #Note: AI can only choose to sell/trade/build once per turn
-    if app.ai.getMonopoly() != []: 
-        build = aiBuild(app)
-    if app.ai.getProperties() != []:
-        sell = aiSell(app)
-    if app.player.getProperties() != [] and app.ai.getProperties() != []:
-        trade = aiTrade(app)
-    if app.trade == False:
-        finishTurnInstructions(app)
-
-def checkPropertyState(app): 
-    #checks which properties are owned by who and adjusts all points
-    for prop in app.properties:
-        prop.calcPropertyPoints()
-        c1 = 0
-        for aiOwn in app.ai.getProperties():
-            if aiOwn.getColor() == prop.getColor() and aiOwn != prop:
-                c1 += 1
-        prop.calcAiPoints(c1)
-        c2 = 0
-        for playerOwn in app.player.getProperties():
-            if playerOwn.getColor() == prop.getColor() and playerOwn != prop:
-                c2 += 1
-        prop.calcPlayerPoints(c2)
-
 def roll(app): #rolls two random die and sets up movement of piece
     app.d1 = random.randint(1, 6)
     app.d2 = random.randint(1, 6)
@@ -330,14 +343,16 @@ def landOnProperty(app, prop): #what happens when you land on property
     else:
         if app.currentPiece == app.player:
             if prop in app.ai.getProperties():
-                app.currentPiece.subtractMoney(prop.getRent())
+                app.player.subtractMoney(prop.getRent())
+                app.ai.addMoney(prop.getRent())
                 app.comment = app.comment+f'\nPaid ${prop.getRent()} in rent!'
             else:
                 app.buy = True
                 app.instructions = "Press 'Y' to Buy and 'N' to Pass"
         elif app.currentPiece == app.ai:
             if prop in app.player.getProperties():
-                app.currentPiece.subtractMoney(prop.getRent())
+                app.ai.subtractMoney(prop.getRent())
+                app.player.addMoney(prop.getRent())
                 app.comment = app.comment+f'\nPaid ${prop.getRent()} in rent!'
                 aiDecisionMaker(app)
             else:
@@ -396,6 +411,7 @@ def tradeProperty(app): #called to trade properties
         else:
             app.currentPiece = app.ai
             app.turn = False
+        app.offer = 0
         app.trade = False
         app.trading = []
         finishTurnInstructions(app)
@@ -665,7 +681,6 @@ def drawSide(app, canvas, square, side, x1, y1, x2, y2):
                 canvas.create_rectangle(x1, y2-app.margin, x2, y2, 
                 fill = 'black')
         
-
 def drawBoard(app, canvas):
     monopolyGreen = rgbString(204, 255, 204)
 
@@ -729,15 +744,15 @@ def drawMoneyAndTime(app, canvas):
     aiMoney = str(app.ai.getMoney())
     canvas.create_text((app.width-app.height)/2+app.height, app.margin*2, 
     font = f"Courier {int(app.text*2)}", anchor = 'c',
-    text = f'Time: {app.count}s', fill = 'purple4')
+    text = f'Player: ${playerMoney}', fill = 'purple4')
     canvas.create_text((app.width-app.height)/2+app.height, 
     app.margin*2+int(app.text*3), 
     font = f"Courier {int(app.text*2)}", anchor = 'c',
-    text = f'Player: ${playerMoney}', fill = 'purple4')
+    text = f'AI: ${aiMoney}', fill = 'purple4')
     canvas.create_text((app.width-app.height)/2+app.height, 
     app.margin*2+int(app.text*6), 
-    font = f"Courier {int(app.text*2)}", anchor = 'c',
-    text = f'AI: ${aiMoney}', fill = 'purple4')
+    font = f"Courier {int(app.text*1.5)}", anchor = 'c',
+    text = f'Time: {app.count}s', fill = 'red')
     
 def drawInstructions(app, canvas):
     canvas.create_rectangle(app.margin*4+app.height, 
@@ -798,7 +813,7 @@ def drawGameNotes(app, canvas):
     \nBefore you finish your turn, you can:
     \n  - Press 's' to sell a property \n   (at half-price of original)\n   if you own properties.
     \n  - Press 't' to trade a property \n   if both players own properties.
-    \n  - Press 'b' to build on a property \n   (if you have a color monopoly).''', 
+    \n  - Press 'b' to build on a property \n   if you have a color monopoly.''', 
     font = f'Courier {int(app.text)}')
 
 def drawCardDisplay(app, canvas):
@@ -827,7 +842,8 @@ def drawCardDisplay(app, canvas):
             \nWith a Hotel: ${str(app.card.levelRent(4))}
             \n\nCost of Property: ${str(app.card.getCost())}
             \nCost of Building: ${str(app.card.houseCost)}
-            \nCurrent Level: {app.card.getLevel()}''',
+            \nCurrent Level: {app.card.getLevel()}
+            \nAI Points: {app.card.getPoints()}''', #DELETE LATER 
             font = f'Courier {int(8*app.text/7)}')
 
 def redrawAll(app, canvas):
