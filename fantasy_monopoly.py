@@ -1,5 +1,5 @@
 #Cindy Xiong (cindyxio)
-#CMU 15-112 Term Project (Monopoly (Fantasy ver.))
+#CMU 15-112 Term Project (Monopoly (Fantasy ver.)) Main File
 
 from cmu_112_graphics_monopoly import *
 import tkinter as tk
