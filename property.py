@@ -74,7 +74,7 @@ class Property(object):
         if count == 2:
             self.playerPoints = 20
         elif count == 1:
-            self.playerPoints = 70
+            self.playerPoints = 50
         else:
             self.playerPoints = 0
     def getPoints(self):
