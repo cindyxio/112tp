@@ -6,18 +6,18 @@ Cindy Xiong (cindyxio)
 Monopoly (Fantasy ver.) is a single-player simplified game of Monopoly against 
 an AI. Unlike the original Monopoly games which have 28 properties that include 
 railroads and utilities in addition to streets, this game has 14 properties 
-which are all color-coded streets with 6 different colors. Both players start 
-off with the same amount of money and the players move around the board by 
-rolling two dice. If a player lands on a not owned property, they can buy it. 
-They also have the choice to sell, trade, or build on their turns if these moves 
-are legal. There are also various other ways to lose and gain money: the 
-“Chance” spaces, which causes a random event out of a list of events to occur, 
-and the “Magic Tax” spaces, which causes the player to lose $200. If you go to 
-Jail, you stay for one turn and get out then by paying $50. The aim of 
-the game for the user is to bankrupt the AI by making it lose all of its money 
-and the user loses if they go bankrupt. However, the game will also end in 20 
-minutes if bankruptcy is not achieved, with the game going to whoever has more 
-money.
+which are all color-coded streets with 6 different colors. The user is the 
+white piece and the AI is the black piece. Both players start off with the 
+same amount of money and the players move around the board by rolling two dice. 
+If a player lands on a not owned property, they can buy it. They also have the 
+choice to sell, trade, or build on their turns if these moves are legal. There 
+are also various other ways to lose and gain money: the “Chance” spaces, which 
+causes a random event out of a list of events to occur, and the “Magic Tax” 
+spaces, which causes the player to lose $200. If you go to Jail, you stay for one 
+turn and get out then by paying $50. The aim of the game for the user is to 
+bankrupt the AI by making it lose all of its money and the user loses if they go 
+bankrupt. However, the game will also end in 20 minutes if bankruptcy is not 
+achieved, with the game going to whoever has more money.
 
 ## How to Run
 This game was created in Python 3.8.5. To run the game, first download all of 
