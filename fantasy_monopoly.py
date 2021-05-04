@@ -109,7 +109,7 @@ def aiTrade(app):
             else:
                 app.comment = "Trade declined..."
             tradeProperty(app) 
-        else:
+        else: #should enter this first when aiTrade is called
             for playerOwn in app.player.getProperties():
                 if playerOwn.getPoints() > 100:
                     worstPoints = 300
@@ -130,6 +130,20 @@ def aiTrade(app):
                         tradeOffer(app)
                         return True
         return False
+
+def tradeOffer(app): #called for player to view trade offer by AI
+    app.offerPending = True
+    ownProp = None
+    oppProp = None
+    if app.trading[0] in app.currentPiece.getProperties():
+        ownProp = app.trading[0]
+        oppProp = app.trading[1]
+    else:
+        ownProp = app.trading[1]
+        oppProp = app.trading[0]
+    app.instructions = "Press 'Y' to Accept and 'N' to Decline Offer"
+    app.comment += f"\nOffer of ${app.offer} and {oppProp.getName()} for {ownProp.getName()}."
+    #goes to keyPressed
 
 def aiSell(app):
     if app.ai.getProperties() != []:
@@ -365,7 +379,7 @@ def landOnProperty(app, prop): #what happens when you land on property
                 app.buy = True
                 aiDecisionMaker(app)
 
-def buyProperty(app, prop):
+def buyProperty(app, prop): #called to buy property
     if app.cont:
         app.currentPiece.addProperty(prop)
         app.currentPiece.subtractMoney(prop.getCost())
@@ -374,19 +388,6 @@ def buyProperty(app, prop):
         app.cont = False
     if app.buy == False:
         finishTurnInstructions(app)
-
-def tradeOffer(app): #called for player to view trade offer by AI
-    app.offerPending = True
-    ownProp = None
-    oppProp = None
-    if app.trading[0] in app.currentPiece.getProperties():
-        ownProp = app.trading[0]
-        oppProp = app.trading[1]
-    else:
-        ownProp = app.trading[1]
-        oppProp = app.trading[0]
-    app.instructions = "Press 'Y' to Accept and 'N' to Decline Offer"
-    app.comment += f"\nOffer of ${app.offer} and {oppProp.getName()} for {ownProp.getName()}."
 
 def tradeProperty(app): #called to trade properties
     ownProp = None
@@ -513,9 +514,9 @@ def keyPressed(app, event):
         if event.key == "Space":
             appStarted(app)
     else:
-        if event.key == "R" or event.key == "r":
+        if event.key == "R" or event.key == "r": #additional rules appear
             app.rules = not app.rules
-        if app.buy and app.turn:
+        if app.buy and app.turn: #player chooses whether to buy
             if event.key == "Y" or event.key == "y":
                 app.cont = True
             if event.key == "N" or event.key == "n":
@@ -523,15 +524,15 @@ def keyPressed(app, event):
             buyProperty(app, app.currentProperty)
         elif ((event.key == "S" or event.key == "s") and 
         app.currentPiece.getProperties() != None and app.sell == False 
-        and app.turn):
+        and app.turn): #player initiates sell
             app.sell = True
             app.instructions = "Click a Property to Sell"
         elif ((event.key == "T" or event.key == "t") and 
         app.ai.getProperties() != [] and app.player.getProperties() != [] 
-        and app.trade == False and app.turn):
+        and app.trade == False and app.turn): #player initiates trade
             app.trade = True
             app.instructions = "Click Properties to Trade"
-        elif app.trade and app.cont and app.turn:
+        elif app.trade and app.cont and app.turn: #player chooses additional offer
             if event.key == "Enter":
                 app.currentPiece = app.ai
                 app.cont = False
@@ -542,7 +543,7 @@ def keyPressed(app, event):
             elif (event.key == "Down" or event.key == "Left") and app.offer > 0:
                 app.offer -= 10
                 app.comment = f"How much will you offer in addition? ${app.offer}"
-        elif app.offerPending and app.turn:
+        elif app.offerPending and app.turn: #when player is given offer by AI
             if event.key == "Y" or event.key == "y":
                 app.cont = True
                 app.comment = "Trade completed!"
@@ -552,7 +553,7 @@ def keyPressed(app, event):
             tradeProperty(app)
         elif ((event.key == 'b' or event.key == 'B') and 
         app.currentPiece.getMonopoly() != [] and app.build == False 
-        and app.turn):
+        and app.turn): #initiates build
             app.build = True
             app.instructions = 'Click a Property to Build'
         elif event.key == 'Space':
