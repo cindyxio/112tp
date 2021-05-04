@@ -21,11 +21,11 @@ achieved, with the game going to whoever has more money.
 
 ## How to Run
 This game was created in Python 3.8.5. To run the game, first download all of 
-the files and make sure that all of the files are in the same folder. The files 
-that should be present besides the main fantasy_monopoly.py are piece.py, 
-property.py, words.py, and cmu_112_graphics_monopoly.py. Then, open 
-fantasy_monopoly.py and press command+b on a Mac to run it if you are using 
-VSCode. If you are using a different editor or IDE, run the file how it is 
+the files aside from those in the folder tpcheck and make sure that all of the 
+files are in the same folder. The files that should be present besides the main 
+fantasy_monopoly.py are piece.py, property.py, words.py, and cmu_112_graphics_monopoly.py. 
+Then, open fantasy_monopoly.py and press command+b on a Mac to run it if you are 
+using VSCode. If you are using a different editor or IDE, run the file how it is 
 normally done. The game should start immediately.
 
 ## Additional Information
