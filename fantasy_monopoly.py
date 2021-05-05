@@ -172,7 +172,10 @@ def aiBuild(app):
         for aiOwn in app.ai.getProperties():
             bestPoints = -300
             bestProp = None
-            if aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints:
+            if bestProp == None and aiOwn.getColor() == color:
+                bestPoints = aiOwn.getPoints()
+                bestProp = aiOwn
+            elif aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints:
                 bestPoints = aiOwn.getPoints()
                 bestProp = aiOwn
         if (bestProp.getPoints() > 50 and bestProp.getLevel() != 'Hotel' and 
@@ -538,7 +541,8 @@ def keyPressed(app, event):
                 app.currentPiece = app.ai
                 app.cont = False
                 aiTrade(app)
-            elif event.key == "Up" or event.key == "Right":
+            elif event.key == "Up" or event.key == "Right" and (app.offer <= 
+            app.player.getMoney()):
                 app.offer += 10
                 app.comment = f"How much will you offer in addition? ${app.offer}"
             elif (event.key == "Down" or event.key == "Left") and app.offer > 0:
