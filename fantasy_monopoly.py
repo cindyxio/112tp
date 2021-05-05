@@ -172,10 +172,12 @@ def aiBuild(app):
         for aiOwn in app.ai.getProperties():
             bestPoints = -300
             bestProp = None
-            if bestProp == None and aiOwn.getColor() == color:
+            if (bestProp == None and aiOwn.getColor() == color 
+            and aiOwn.getLevel() != 'Hotel'):
                 bestPoints = aiOwn.getPoints()
                 bestProp = aiOwn
-            elif aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints:
+            elif (aiOwn.getColor() == color and aiOwn.getPoints() > bestPoints 
+            and aiOwn.getLevel() != 'Hotel'):
                 bestPoints = aiOwn.getPoints()
                 bestProp = aiOwn
         if (bestProp.getPoints() > 50 and bestProp.getLevel() != 'Hotel' and 
