@@ -360,6 +360,7 @@ def landOnProperty(app, prop): #what happens when you land on property
     if prop in app.currentPiece.getProperties():
         if app.currentPiece == app.ai:
             aiDecisionMaker(app)
+        finishTurnInstructions(app)
     else:
         if app.currentPiece == app.player:
             if prop in app.ai.getProperties():
