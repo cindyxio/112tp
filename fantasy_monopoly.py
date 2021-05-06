@@ -181,7 +181,7 @@ def aiBuild(app):
                 bestPoints = aiOwn.getPoints()
                 bestProp = aiOwn
         if (bestProp.getPoints() > 50 and bestProp.getLevel() != 'Hotel' and 
-        bestProp.houseCost < app.aiMoney+50):
+        bestProp.houseCost < app.aiMoney-50):
             bestProp.build()
             app.ai.subtractMoney(bestProp.houseCost)
             app.comment += f"\nAI built on {bestProp.getName()}!"
