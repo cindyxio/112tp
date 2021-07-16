@@ -1,6 +1,6 @@
 Cindy Xiong (cindyxio)
 # 15-112 Term Project - Monopoly (Fantasy ver.)
-# Note: Also called "Fantasy Monopoly" at times for the sake of shortening
+### Note: Also called "Fantasy Monopoly" at times for the sake of shortening
 
 ## Description
 Monopoly (Fantasy ver.) is a single-player simplified game of Monopoly against 
